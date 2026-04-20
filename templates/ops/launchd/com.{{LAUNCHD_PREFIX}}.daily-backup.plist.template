@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.{{LAUNCHD_PREFIX}}.daily-backup.plist
+
+  Paranoid nightly GitHub backup of the {{PROJECT_NAME}} vault, agent, and ops repo.
+
+  Off-hour schedule rationale:
+    Scheduled at 03:33 (HH:MM) instead of 03:00 on purpose. Integer-hour slots
+    are when every automation job on the planet fires at once — GitHub rate
+    limits, Anthropic API, and the macOS network stack all see a thundering
+    herd of requests. Off-hour minutes (:33 here) spread the load and reduce
+    flakiness. The same principle applies to the ingest and lint plists:
+    pick a minute that is NOT :00 and NOT :30.
+
+  Safety: the referenced script never `git push --force`, never `--hard`,
+  never `--amend`, and aborts any repo that would delete >20 files in one run.
+  See {{LOCAL_ROOT}}/_ops/scripts/daily-backup.sh for the full contract.
+
+  Install:
+    ln -sf {{LOCAL_ROOT}}/_ops/launchd/com.{{LAUNCHD_PREFIX}}.daily-backup.plist \
+      ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.daily-backup.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.daily-backup.plist
+    rm ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.daily-backup.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{LAUNCHD_PREFIX}}.daily-backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{LOCAL_ROOT}}/_ops/scripts/daily-backup.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>{{LOCAL_ROOT}}/_ops</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>3</integer>
+    <key>Minute</key><integer>33</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>{{LOCAL_ROOT}}/_ops/logs/daily-backup.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>{{LOCAL_ROOT}}/_ops/logs/daily-backup.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/{{HOME_USER}}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>

@@ -1,0 +1,222 @@
+# {{PROJECT_NAME}} — Disaster Recovery Runbook
+
+**Use this when:** the Mac running {{PROJECT_NAME}} dies, is stolen, drowns, or you are switching to a new machine. Goal: full system rebuild in <= 2 hours.
+
+**Backups in play:**
+
+- 3 private GitHub repos under `{{GITHUB_USER}}/`: `{{VAULT_REPO}}`, `{{AGENT_REPO}}`, `{{OPS_REPO}}`.
+- 1 secret vault (1Password, Bitwarden, or equivalent) holding the agent's `auth.json` and any `.env` files.
+- macOS keychain entry `Claude Code-credentials` (recreated by logging into the Claude Code app).
+- This document (the runbook).
+
+---
+
+## Step A — Install prerequisites on the new Mac (~15 min)
+
+| Tool | Install command | Why |
+|---|---|---|
+| Xcode Command Line Tools | `xcode-select --install` | Provides git and compilers |
+| Homebrew | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` | Package manager |
+| `gh` CLI | `brew install gh && gh auth login` | Clone private repos |
+| Obsidian | https://obsidian.md | Open the vault |
+| Claude Code | https://claude.ai/download | Wiki ingest pipeline + OAuth |
+| Hermes runtime | https://hermes-agent.nousresearch.com | Run the Telegram librarian |
+| 1Password (or your secret vault) | https://1password.com/downloads/ | Retrieve secrets |
+| `uv` (optional, if your agent has a Python venv) | `brew install uv` | Isolated Python environments |
+
+Sign in to your Apple ID (keychain) and GitHub account (`gh auth login --git-protocol https`).
+
+---
+
+## Step B — Clone the 3 repos (~5 min)
+
+```bash
+mkdir -p {{LOCAL_ROOT}}/agents
+cd {{LOCAL_ROOT}}
+
+gh repo clone {{GITHUB_USER}}/{{VAULT_REPO}}  {{VAULT_NAME}}
+gh repo clone {{GITHUB_USER}}/{{AGENT_REPO}}  agents/{{AGENT_NAME}}
+gh repo clone {{GITHUB_USER}}/{{OPS_REPO}}    _ops
+```
+
+After this: directory tree matches the original Mac.
+
+---
+
+## Step C — Restore secrets from your secret vault (~10 min)
+
+Open your secret vault. For each Secure Note, paste its contents back into the matching local file:
+
+| Secret item | Paste into |
+|---|---|
+| `{{PROJECT_NAME}}: {{AGENT_NAME}}/.env` | `{{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/.env` |
+| `{{PROJECT_NAME}}: {{AGENT_NAME}}/auth.json` | `{{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/auth.json` |
+
+Lock down permissions:
+
+```bash
+chmod 600 {{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/.env
+chmod 600 {{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/auth.json
+```
+
+**Sanity check** (the bot token should parse as a 46-char Telegram token):
+
+```bash
+grep '^TELEGRAM_BOT_TOKEN=' {{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/.env | cut -c20-40
+```
+
+---
+
+## Step D — Restore Claude Code OAuth (~2 min)
+
+The `run-ingest.sh` and `run-lint.sh` wrappers read the OAuth token from the macOS keychain entry `Claude Code-credentials`.
+
+1. Launch the Claude Code app.
+2. Sign in with the Anthropic account used previously.
+3. Verify the keychain entry exists:
+
+```bash
+security find-generic-password -s "Claude Code-credentials" -w | head -c 30
+# Should print: sk-ant-oat01-...
+```
+
+If the entry is not there, open the Claude Code app once and let it complete first-run setup.
+
+---
+
+## Step E — Install the Hermes runtime (~5 min)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash -s -- --skip-setup
+hermes --version  # confirm v0.10 or later
+```
+
+This installs the Hermes binary globally. The agent repo at `{{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/` holds its own `HERMES_HOME` config (see `agents/{{AGENT_NAME}}/config.yaml`).
+
+---
+
+## Step F — Register launchd plists (~3 min)
+
+The 3 plists live in `_ops/launchd/`. Symlink each to `~/Library/LaunchAgents/` and load:
+
+```bash
+mkdir -p ~/Library/LaunchAgents
+for f in {{LOCAL_ROOT}}/_ops/launchd/com.{{LAUNCHD_PREFIX}}.*.plist; do
+  ln -sf "$f" ~/Library/LaunchAgents/
+  launchctl load -w ~/Library/LaunchAgents/$(basename "$f")
+done
+
+# Verify (should show 3 jobs: agent keep-alive, ingest, lint, plus daily-backup)
+launchctl list | grep {{LAUNCHD_PREFIX}}
+```
+
+Expected entries:
+
+- `{{LAUNCHD_PREFIX}}.{{AGENT_NAME}}` (PID > 0 = running — the Telegram gateway is KeepAlive)
+- `{{LAUNCHD_PREFIX}}.ingest` (PID dash = scheduled)
+- `{{LAUNCHD_PREFIX}}.lint` (PID dash = scheduled)
+- `{{LAUNCHD_PREFIX}}.daily-backup` (PID dash = scheduled)
+
+---
+
+## Step G — Open the vault in Obsidian (~10 min)
+
+> If Obsidian is not yet installed on this Mac, follow the fresh-Mac install + configure walkthrough in `docs/00-obsidian-new-mac-setup.md` in the template repo (sections 2, 3, 5–9). The abbreviated steps below assume you already followed that doc and just need the DR-specific confirmations.
+
+1. Launch Obsidian.
+2. "Open folder as vault" -> select `{{LOCAL_ROOT}}/{{VAULT_NAME}}`.
+3. Settings -> Community plugins -> turn on, install the plugins listed in `.obsidian/community-plugins.json` (Dataview, Templater, Obsidian Git, etc.).
+4. Files & Links: attachment folder = `raw/assets`, default link = Wikilink, new link = Relative path.
+5. Templater settings -> Template folder = `templates`.
+6. Homepage plugin -> set to `wiki/index.md`.
+
+---
+
+## Step H — Verify the agent is receiving messages (~5 min)
+
+1. Open Telegram, DM the agent's bot (`@{{TELEGRAM_BOT_HANDLE}}` as listed in the agent repo's README).
+2. Send "hi". Expect a reply within ~5 seconds.
+3. Send a short text note. Within ~1 second you should see the file appear at:
+
+```bash
+ls -lt {{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/inbox/ | head -5
+```
+
+If nothing appears: see `agents/{{AGENT_NAME}}/README.md` troubleshooting section.
+
+---
+
+## Step I — Verify the first ingest (~5 min)
+
+Trigger the ingest manually:
+
+```bash
+{{LOCAL_ROOT}}/_ops/run-ingest.sh
+tail -n 40 {{LOCAL_ROOT}}/_ops/logs/ingest.run.log
+```
+
+Expected log output: "pass-1 classify (haiku)" then "pass-2 ingest (sonnet)" then "ingest done". New wiki entries should appear in `{{LOCAL_ROOT}}/{{VAULT_NAME}}/wiki/`.
+
+---
+
+## Step J — Verify the first daily-backup (~5 min)
+
+Trigger the backup manually:
+
+```bash
+{{LOCAL_ROOT}}/_ops/scripts/daily-backup.sh
+cat {{LOCAL_ROOT}}/_ops/logs/daily-backup-last.json | python3 -m json.tool
+```
+
+Expected: every repo either `committed_pushed` or `no_change`. Zero `refused_bulk_delete`.
+
+Scheduled run will fire tomorrow at 03:33. Check `daily-backup-last.json` every morning for a week to confirm.
+
+---
+
+## Troubleshooting table
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `launchctl list` shows no `{{LAUNCHD_PREFIX}}` jobs | plists not symlinked into `~/Library/LaunchAgents/` | Re-run Step F |
+| Agent does not reply in Telegram | `TELEGRAM_ALLOWED_USERS` missing your user ID | Edit `agents/{{AGENT_NAME}}/.env`, reload the agent plist |
+| `ingest.run.log` says "could not extract OAuth token" | Claude Code app not signed in on this Mac | Re-run Step D |
+| `daily-backup-last.json` shows `refused_bulk_delete` | > 20 files deleted since last run | Inspect the diff manually; re-run with `FORCE_DELETE_OK=1` only if the deletions are intentional |
+| `daily-backup-last.json` shows `pull_failed` for a repo | Rebase conflict with remote | `cd` into the repo, resolve manually, then re-run the script |
+| Scheduled run skipped while laptop slept | launchd StartCalendarInterval missed-wake behavior | Will fire on next scheduled time; no action needed (launchd runs once, not catch-up-all-missed) |
+| Wiki lint shows violations every week | Schema drift — add fields to vault `CLAUDE.md` or back-fill pages | Open the JSON report at `{{LOCAL_ROOT}}/{{VAULT_NAME}}/wiki/outputs/lint-report-*.json` |
+
+---
+
+## Total time budget: ~60-75 min
+
+Faster if the Hermes binary download and Obsidian plugin installs are quick on your network.
+
+---
+
+## What you lose coming from the old Mac (acceptable)
+
+- Hermes session history — the agent starts fresh, no memory of past conversations.
+- `_ops/logs/` — historical run logs; current state is preserved in `wiki/`.
+- Anything sitting in `{{VAULT_NAME}}/raw/inbox/` that had not been ingested yet (the daily-backup at 03:33 pushes them; if your Mac died before 03:33, they are lost — mitigation: commit manually before long trips).
+
+## What you keep (everything that matters)
+
+- All wiki content (every entity page, decision, source summary, log).
+- The vault schema (`{{VAULT_NAME}}/CLAUDE.md`).
+- The agent config + personality + hooks (`agents/{{AGENT_NAME}}/`).
+- All ops scripts and launchd plists.
+- All secrets via your secret vault.
+
+---
+
+## Quarterly maintenance
+
+To keep this runbook accurate, every 3 months:
+
+1. **Verify backup completeness**: spot-check secret vault items against current local files.
+2. **Verify daily auto-sync**: `tail {{LOCAL_ROOT}}/_ops/logs/daily-backup.log` shows recent entries.
+3. **Verify GitHub repos pushed**: `cd {{LOCAL_ROOT}}/{{VAULT_NAME}} && git status -sb` shows up-to-date.
+4. **Re-test ONE step of this runbook**: clone a repo to `/tmp/`, restore one secret to `/tmp/`, confirm parsing. Proves the chain still works.
+
+If anything in the system changes (new plist, new script, new secret), update both the actual file AND the matching secret-vault item (if a secret).

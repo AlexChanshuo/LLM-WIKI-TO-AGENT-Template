@@ -1,0 +1,157 @@
+# {{VAULT_NAME}} — Obsidian vault for {{DOMAIN_DESCRIPTION}}
+
+> **Repo on GitHub:** {{VAULT_REPO}} (owned by {{GITHUB_USER}})
+> **Local path:** {{LOCAL_ROOT}}/{{VAULT_NAME}}/
+> **Companion agent:** {{AGENT_REPO}} (named {{AGENT_NAME}})
+> **Ops orchestrator:** {{OPS_REPO}}
+> **Vault type:** Obsidian + Claude-Code-managed wiki, Karpathy three-layer pattern
+
+---
+
+## TL;DR
+
+This repo IS an Obsidian vault. It holds structured, LLM-maintained knowledge about {{DOMAIN_DESCRIPTION}} for the {{PROJECT_NAME}} project. Raw capture arrives via the {{AGENT_NAME}} agent; Claude Code classifies and writes structured pages under `wiki/` on a schedule driven by {{OPS_REPO}}.
+
+**One sentence:** *Capture in → raw file → scheduled classification → structured Obsidian wiki out.*
+
+---
+
+## Where this vault fits
+
+```
+{{LOCAL_ROOT}}/
+├── {{VAULT_NAME}}/     ← you are here (storage layer)
+├── {{AGENT_NAME}}/     ← capture agent (writes to raw/)
+└── _ops/               ← {{OPS_REPO}} (schedules ingest/compile/query/lint)
+```
+
+| Sibling | Role | Touches this vault? |
+|---|---|---|
+| **{{VAULT_NAME}}** (here) | Knowledge storage, LLM-curated | — |
+| **{{AGENT_NAME}}** | Capture layer — writes `raw/inbox/` only | Yes, write-only to `raw/` |
+| **{{OPS_REPO}}** | Orchestration — launchd/cron, backups, runbooks | Yes, runs the four ops |
+
+Strict boundary: the agent never reads `wiki/`, the ops repo never edits content pages, and this vault never calls out to anything. Each repo has one job.
+
+---
+
+## Why this vault exists
+
+1. **Single canonical home.** Without one place for knowledge about {{DOMAIN_DESCRIPTION}}, references decay and past decisions can't be revisited.
+2. **Compounding judgment.** Decisions need 90-day reviews. People need follow-up cadences. Books need retention notes. None of this happens automatically without a structured store with a schema.
+3. **LLM-native, human-readable.** The vault is plain markdown with YAML frontmatter — readable in Obsidian, editable by hand, parseable by every future LLM.
+
+---
+
+## Folder map
+
+| Path | Contents | Who writes it |
+|---|---|---|
+| `CLAUDE.md` | Schema — source of truth for routing, frontmatter, ops | Human (with explicit intent) |
+| `README.md` | This file | Human |
+| `raw/inbox/` | Capture from {{AGENT_NAME}}: one file per message/event | {{AGENT_NAME}} only (deterministic hook) |
+| `raw/articles/` | Web Clipper output | Obsidian Web Clipper |
+| `raw/transcripts/` | Voice notes, calls, dictation | {{AGENT_NAME}} / manual |
+| `raw/docs/` | PDFs converted to markdown | Manual / pipeline |
+| `raw/assets/` | Image attachments | {{AGENT_NAME}} / manual |
+| `wiki/index.md` | Master catalog — rebuilt every ingest | `compile` op |
+| `wiki/log.md` | Append-only changelog | `ingest` / `compile` / `lint` ops |
+| `wiki/entities/{people,companies,tools,books,places}/` | One canonical page per real thing | `ingest` op |
+| `wiki/concepts/{projects,areas,resources,atoms,frameworks,archive}/` | Ideas and scaffolding (PARA + Zettelkasten) | `ingest` op |
+| `wiki/sources/` | One summary per ingested document | `ingest` op |
+| `wiki/syntheses/{decisions,meetings,reflections,reading-notes}/` | Distilled cross-source pages | `ingest` op |
+| `wiki/outputs/` | Query answers, lint reports, triage queue | `query` / `lint` ops |
+
+---
+
+## End-to-end workflow
+
+1. **Capture.** User interacts with {{AGENT_NAME}} (Telegram, email, browser extension — whatever the agent supports). The agent's deterministic hook writes a markdown file into `raw/inbox/` with provenance frontmatter (source URL, sender, timestamp, sha256).
+2. **Classify (Pass 1).** `_ops` fires the `ingest` op on a schedule. Claude (cheap tier, e.g. Haiku) reads each unclassified inbox file and emits a JSON action plan: `signals_detected`, `entities_mentioned`, `suggested_actions`, `confidence`.
+3. **Ingest (Pass 2).** Claude (writing tier, e.g. Sonnet) executes the action plan: creates/updates entity pages, writes source summaries, appends dated entries to areas, creates decision pages, rebuilds `index.md`, appends to `log.md`.
+4. **Archive.** Source files move from `raw/inbox/` to `raw/inbox/.processed/`.
+5. **Query.** Open Obsidian, or run `/{{VAULT_NAME}}-query "..."` for a filed, wikilink-cited answer in `wiki/outputs/`.
+6. **Lint.** Weekly: `/{{VAULT_NAME}}-lint` surfaces orphan pages, overdue decisions, stale areas, broken wikilinks. Output lands in `wiki/outputs/lint-report-{date}.md`.
+
+---
+
+## Required assets
+
+### Hard dependencies
+- **Obsidian** (https://obsidian.md/) for human read/edit
+- **Claude Code CLI** with OAuth for the ingest pipeline (runs from {{OPS_REPO}})
+- **{{AGENT_NAME}}** running, for inbound capture
+
+### Obsidian plugins
+Recommended: Dataview, Templater, Obsidian Git, Linter, Homepage. Plugin binaries are gitignored — install via Settings → Community Plugins → Browse on first open.
+
+### Secrets
+**This repo holds no secrets.** All credentials live outside the vault (password manager, macOS keychain, {{AGENT_NAME}}'s `.env` which is gitignored there).
+
+---
+
+## Under the hood
+
+### The three-layer contract (Karpathy pattern)
+
+- `raw/` — immutable. LLM read-only. One file per source document, provenance-stamped.
+- `wiki/` — LLM-maintained. Curated, structured, wikilinked.
+- `CLAUDE.md` — schema. Loaded every session. The contract.
+
+Full details in [`CLAUDE.md`](./CLAUDE.md). Always read it before modifying anything under `wiki/`.
+
+### Frontmatter
+
+Every page carries YAML frontmatter with `type`, `title`, `date_created`, `date_modified`, `summary`, `status`, `tags`, `related`. Entity types (`person`, `company`, etc.) and synthesis types (`decision`, `meeting`, etc.) add their own required fields — see `CLAUDE.md`.
+
+### Wikilinks
+
+Cross-references use Obsidian `[[wikilinks]]` from the vault root (`[[entities/people/david-chen]]`), not markdown links. Every new page must be linked from at least one existing page.
+
+### Deterministic capture, generative curation
+
+The agent's capture hook is deterministic Python — not an LLM — so raw files land on disk reliably. LLMs only touch the curation layer (`wiki/`), where generative quality matters and errors are recoverable.
+
+---
+
+## Backup and disaster recovery
+
+This vault is one of the repos managed by {{OPS_REPO}}. Backup cadence, lockfile discipline, bulk-delete tripwires, and restore runbook all live there. Never run `git push --force`, `git reset --hard`, or `git commit --amend` against this repo from inside an LLM session — if something looks broken, stop and read {{OPS_REPO}}'s RESTORE runbook.
+
+---
+
+## If you're an AI agent reading this repo, do this in order
+
+1. **Read `CLAUDE.md`** — that file is the schema contract. Every routing, frontmatter, and op decision flows from it.
+2. **Read this README** (which you're doing).
+3. **Sample 2-3 files in `wiki/entities/`** and 1-2 in `wiki/syntheses/decisions/` to see real frontmatter and prose patterns.
+4. **NEVER write to `raw/`.** It's immutable. The agent writes inbox files; only the `ingest` op moves them to `.processed/`.
+5. **NEVER delete files.** Move to `wiki/concepts/archive/` or `_graveyard/`. Deletion destroys wikilink history.
+6. **NEVER rename a file without updating every `[[wikilink]]`** that points at it in the same commit.
+7. **NEVER edit `CLAUDE.md` without the user's explicit request.** Schema changes are a human decision.
+8. **NEVER commit before a `lint` pass** — dirty findings are fine; skipping lint is not.
+9. **NEVER invent facts.** Mark `[unverified]` if you can't trace a claim to a source.
+10. **NEVER write area pages from scratch.** Append dated entries — chronological accumulation IS the value.
+11. **If unsure, route to triage** (`wiki/outputs/triage-queue.md`) rather than writing a wrong page.
+
+---
+
+## Operating commands
+
+```
+/{{VAULT_NAME}}-ingest       # Pass 1 + Pass 2 — classify and write wiki updates
+/{{VAULT_NAME}}-compile      # rebuild wiki/index.md from current wiki/ state
+/{{VAULT_NAME}}-query "..."  # ad-hoc question; answer saved to wiki/outputs/
+/{{VAULT_NAME}}-lint         # health check; report saved to wiki/outputs/
+```
+
+Ingest runs automatically via {{OPS_REPO}}'s launchd/cron jobs; the others are manual.
+
+---
+
+## Reference
+
+- Schema: [`CLAUDE.md`](./CLAUDE.md)
+- Companion agent: {{AGENT_REPO}}
+- Ops orchestrator: {{OPS_REPO}}
+- Architecture inspiration: Karpathy's "LLM Knowledge Bases" pattern (raw + wiki + CLAUDE.md three-layer)

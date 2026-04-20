@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.{{LAUNCHD_PREFIX}}.lint.plist
+
+  Daily lint pass over {{LOCAL_ROOT}}/{{VAULT_NAME}}/wiki/ (frontmatter
+  validation, wikilink resolution, kebab-case filenames, required fields).
+
+  Off-hour schedule rationale:
+    Single fire at 06:47 — an odd, unused minute. Runs before the first
+    ingest (08:17) so the lint report is fresh when the operator checks
+    the vault in the morning.
+
+  Exit codes from run-lint.sh:
+    0 = clean, no violations
+    1 = lint run failed (token, CLI, etc.)
+    2 = violations found — launchd surfaces as failed job
+
+  Install:
+    ln -sf {{LOCAL_ROOT}}/_ops/launchd/com.{{LAUNCHD_PREFIX}}.lint.plist \
+      ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.lint.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{LAUNCHD_PREFIX}}.lint</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{LOCAL_ROOT}}/_ops/run-lint.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>{{LOCAL_ROOT}}/_ops</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>6</integer>
+    <key>Minute</key><integer>47</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>{{LOCAL_ROOT}}/_ops/logs/lint.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>{{LOCAL_ROOT}}/_ops/logs/lint.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/{{HOME_USER}}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>

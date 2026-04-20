@@ -1,0 +1,133 @@
+# =============================================================================
+# Hermes agent config — {{AGENT_NAME}}
+# =============================================================================
+# Copy this file to `config.yaml` inside the agent repo and let a bootstrapping
+# script substitute the `{{...}}` placeholders. This config mirrors the shape
+# used by the reference librarian implementation, with personal specifics
+# stripped out.
+#
+# LEGAL / TOS CONSTRAINT — READ THIS BEFORE EDITING
+# -----------------------------------------------------------------------------
+# Anthropic's Terms of Service forbid using Claude subscription OAuth tokens
+# inside third-party agent tools. Hermes counts as a third-party tool. So this
+# config must NEVER list `anthropic` as a provider, model, or fallback.
+# Claude is reserved for the official `claude -p` CLI, called only from
+# `_ops` scripts (outside Hermes). Do not add Anthropic here. See SOUL.md.
+# =============================================================================
+
+agent:
+  name: {{AGENT_NAME}}
+
+# -----------------------------------------------------------------------------
+# Model routing — ChatGPT via OpenAI Codex OAuth (ChatGPT Pro subscription)
+# with GitHub Copilot PAT as automatic fallback. No Anthropic.
+# -----------------------------------------------------------------------------
+model:
+  # Primary conversational model. `gpt-5-codex` / `gpt-5.4-mini` are
+  # typical choices depending on what the ChatGPT Pro plan exposes.
+  default: "gpt-5.4-mini"
+  provider: openai-codex
+
+# Route short / trivial turns to a cheaper model to save quota.
+smart_model_routing:
+  enabled: true
+  cheap_model: "gpt-5.4-nano"
+  cheap_for_short_turns: true
+
+# -----------------------------------------------------------------------------
+# Automatic provider failover
+# -----------------------------------------------------------------------------
+# When Tier 1 hits a rate limit or the credential is marked exhausted, Hermes
+# switches to the next listed provider — no user action needed.
+#
+# Tier 1 (primary):  openai-codex / gpt-5.4-mini  (ChatGPT Pro subscription)
+# Tier 2 (fallback): copilot       / gpt-4o       (GitHub Copilot PAT)
+#
+# Anthropic is INTENTIONALLY NOT in this chain (see TOS note at top).
+# -----------------------------------------------------------------------------
+fallback_providers:
+  - copilot
+
+# -----------------------------------------------------------------------------
+# Skills — the callable actions the LLM is allowed to invoke.
+# `query-vault` is the only one required by this template. Add domain skills
+# per-agent as needed; keep the list small — skills that are never called
+# still bloat the system prompt.
+# -----------------------------------------------------------------------------
+skills:
+  enabled: true
+  # Skills live in <HERMES_HOME>/skills/. Hermes auto-discovers them.
+  # Explicit allowlist (optional but recommended):
+  allowlist:
+    - query-vault
+
+# -----------------------------------------------------------------------------
+# Hooks — deterministic Python that runs at lifecycle events.
+# `auto-save-inbox` fires on `agent:start` and MUST be registered — it is
+# what guarantees every inbound Telegram message is persisted to disk before
+# the LLM has a chance to drop, mislabel, or hallucinate it. See SOUL.md
+# "Deterministic over LLM" and `hooks/auto-save-inbox/handler.py`.
+# -----------------------------------------------------------------------------
+hooks:
+  enabled: true
+  registered:
+    - auto-save-inbox
+
+# -----------------------------------------------------------------------------
+# Filesystem boundary — one agent writes to exactly one vault.
+# Cross-vault access is READ-ONLY via the `query-vault` skill. This is
+# enforced in three places: (1) here, (2) SOUL.md, (3) the auto-save hook
+# hard-codes the write path.
+# -----------------------------------------------------------------------------
+filesystem:
+  bound_vault: {{LOCAL_ROOT}}/{{VAULT_NAME}}
+  write_allowed:
+    - {{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/inbox
+    - {{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/assets
+    - {{LOCAL_ROOT}}/{{VAULT_NAME}}/wiki/outputs
+  read_allowed:
+    # Add sibling vaults here ONLY if the user has granted read-only access.
+    # Example (commented out):
+    # - {{LOCAL_ROOT}}/<sibling-vault>/wiki
+    - {{LOCAL_ROOT}}/{{VAULT_NAME}}/wiki
+
+# -----------------------------------------------------------------------------
+# Memory (Hermes long-term store) — per-machine, gitignored.
+# -----------------------------------------------------------------------------
+memory:
+  store_dir: memories
+  nudge_interval: 5
+
+# -----------------------------------------------------------------------------
+# Platforms — this template assumes Telegram. CLI is kept for local testing.
+# -----------------------------------------------------------------------------
+platform_toolsets:
+  telegram:
+    - hermes-telegram
+  cli:
+    - hermes-cli
+
+telegram:
+  handle: {{TELEGRAM_BOT_HANDLE}}
+  # TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_USERS are loaded from .env — not here.
+
+# -----------------------------------------------------------------------------
+# Streaming + session policy
+# -----------------------------------------------------------------------------
+streaming:
+  enabled: true
+  transport: edit
+
+session_reset:
+  telegram:
+    idle_minutes: 60
+    max_turns: 100
+
+# -----------------------------------------------------------------------------
+# Speech-to-text — local Whisper by default so voice doesn't leave the Mac.
+# -----------------------------------------------------------------------------
+stt:
+  enabled: true
+  provider: local
+  local:
+    model: small

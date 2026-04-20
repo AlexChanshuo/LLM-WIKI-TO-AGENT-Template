@@ -1,0 +1,61 @@
+# Secrets — never commit
+auth.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.pkcs12
+*.p12
+credentials.json
+token.json
+*.token
+
+# Hermes runtime artifacts — in case a user copies the template into a live agent dir
+*.pid
+state.db
+state.db-shm
+state.db-wal
+sessions/
+sandboxes/
+cache/
+logs/
+memories/
+platforms/
+gateway_state.json
+models_dev_cache.json
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node (in case future skills use it)
+node_modules/
+npm-debug.log*
+yarn-error.log
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db

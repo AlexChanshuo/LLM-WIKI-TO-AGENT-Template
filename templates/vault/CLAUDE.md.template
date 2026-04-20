@@ -1,0 +1,252 @@
+# {{VAULT_NAME}} — LLM Schema
+
+## Identity
+
+- **Vault name:** {{VAULT_NAME}}
+- **Domain:** {{DOMAIN_DESCRIPTION}}
+- **Project context:** {{PROJECT_NAME}}
+- **Repo:** {{VAULT_REPO}} (owned by {{GITHUB_USER}})
+- **Companion agent:** {{AGENT_REPO}} — reads/writes `raw/` only, never `wiki/`
+- **Ops orchestrator:** {{OPS_REPO}} — runs ingest/compile/query/lint on a schedule
+
+This file is the contract every LLM session must load before touching anything under `wiki/`. If a rule here conflicts with a chat instruction, this file wins unless the user explicitly says otherwise.
+
+---
+
+## The three-layer contract (Karpathy pattern)
+
+The vault has exactly three layers. Do not invent new ones.
+
+| Layer | Role | LLM write access |
+|---|---|---|
+| `raw/` | Immutable source documents — provenance-stamped, one file per input | **READ ONLY.** Never edit, rename, or delete files under `raw/`. |
+| `wiki/` | LLM-maintained structured knowledge — one canonical page per concept/entity/source/synthesis | Read and write. This is where you do your work. |
+| `CLAUDE.md` | Schema — this file. Source of truth for routing, frontmatter, ops. | Read every session. Do not edit without explicit user request. |
+
+The direction of flow is always `raw/` → `wiki/`. Never the reverse. `wiki/` is what you curate; `raw/` is what actually happened.
+
+---
+
+## Folder map of `wiki/`
+
+```
+wiki/
+├── index.md              ← master catalog — rebuilt on every ingest
+├── log.md                ← append-only changelog of ops events
+├── entities/             ← one canonical page per real-world thing
+│   ├── people/
+│   ├── companies/
+│   ├── tools/
+│   ├── books/
+│   └── places/
+├── concepts/             ← ideas and organizational scaffolding
+│   ├── projects/         ← deadlined, actionable
+│   ├── areas/            ← ongoing responsibilities
+│   ├── resources/        ← reference material
+│   ├── atoms/            ← single-idea notes (<300 words, densely linked)
+│   ├── frameworks/       ← reusable mental models
+│   └── archive/          ← deprecated, retained for history
+├── sources/              ← one summary per ingested document
+├── syntheses/            ← distilled output spanning multiple sources
+│   ├── decisions/
+│   ├── meetings/
+│   ├── reflections/
+│   └── reading-notes/
+├── outputs/              ← query answers, lint reports, triage queue
+└── external/             ← (optional) pages explicitly approved for external agents
+```
+
+Adapt leaf folders to the domain ({{DOMAIN_DESCRIPTION}}), but keep the top-level spine: `index.md`, `log.md`, `entities/`, `concepts/`, `sources/`, `syntheses/`, `outputs/`.
+
+---
+
+## Filename conventions
+
+- All filenames: **kebab-case** — `david-chen.md`, not `David Chen.md`
+- Source summaries from inbox: `{YYYYMMDD}-{slug}.md`
+- Source summaries from articles: `{author}-{year}-{short-title}.md`
+- Decisions: `{YYYY-MM-DD}-{slug}.md`
+- Meetings: `{YYYY-MM-DD}-{participants-slug}.md`
+- Weekly reflections: `{YYYY}-W{WW}-week.md`
+
+---
+
+## Wikilink rules
+
+- Cross-references use Obsidian `[[wikilinks]]`, not markdown `[text](path)` links
+- Link by path from the vault root, e.g. `[[entities/people/david-chen]]`
+- Bold first occurrence of any key term per page
+- Every new entity or concept page MUST be linked from at least one existing page (no orphans)
+- When you rename a file, search for every `[[wikilink]]` pointing at it and update them in the same commit
+
+---
+
+## Frontmatter schema
+
+### Universal (all pages)
+
+```yaml
+---
+title: "..."
+date_created: YYYY-MM-DD
+date_modified: YYYY-MM-DD
+summary: "1-2 sentences"
+type: concept | entity | source | synthesis | output | index
+status: draft | review | final
+tags: [...]
+related: [[...]]
+audience: internal | external          # default: internal; omit = internal
+confidence: 0.0-1.0                    # only on auto-classified pages
+---
+```
+
+### Entity — person (`entities/people/{slug}.md`)
+
+```yaml
+---
+type: entity
+entity_type: person
+title: "Full Name"
+aliases: [nickname, alt-spelling]
+company: [[entities/companies/x]]
+role: "Title at company"
+relationship: friend | mentor | partner | family | prospect | acquaintance
+last_contacted: YYYY-MM-DD
+contact_cadence_days: 30
+follow_up_due: YYYY-MM-DD              # auto-computed: last_contacted + cadence
+contact_methods: [...]
+notes_count: 0
+---
+```
+
+### Entity — company / tool / book / place
+
+Minimum fields: `type: entity`, `entity_type: {company|tool|book|place}`, `title`, `summary`, `related`. Add domain-specific fields as the vault matures.
+
+### Source (`sources/{slug}.md`)
+
+```yaml
+---
+type: source
+source_url: "..."
+source_type: article | transcript | inbox | calendar-event | doc
+fetched_at: YYYY-MM-DD
+sha256: "..."                          # of the raw file being summarized
+raw_path: "raw/.../original.md"
+---
+```
+
+### Synthesis — decision (`syntheses/decisions/{date}-{slug}.md`)
+
+```yaml
+---
+type: synthesis
+synthesis_type: decision
+title: "Decision: ..."
+decided_on: YYYY-MM-DD
+context: "what triggered this"
+options_considered: [a, b, c]
+chosen: a
+rationale: "why"
+reversibility: one-way | two-way
+review_date: YYYY-MM-DD                # default: decided_on + 90 days
+outcome: pending | win | loss | mixed  # filled at review
+related_people: [[entities/people/x]]
+---
+```
+
+### Atom (`concepts/atoms/{slug}.md`)
+
+```yaml
+---
+type: concept
+concept_type: atom
+title: "Single idea expressed in the title"
+related: [[atoms/...]]                 # dense links to neighbors
+tags: [...]
+---
+```
+
+---
+
+## The four ops
+
+Every automation touching this vault resolves to one of four ops. Their acceptance criteria are load-bearing — do not skip them.
+
+### 1. INGEST — `/{{VAULT_NAME}}-ingest`
+
+**Input:** files in `raw/inbox/` (or another `raw/*/` subdir) not yet processed.
+**Output:** new/updated pages under `wiki/`; source file moved to `raw/inbox/.processed/`.
+
+Steps:
+1. For each unprocessed raw file, read its frontmatter and body.
+2. Classify: detect signals (person mention, decision, source citation, domain-specific flags). If `confidence < 0.7`, route to `wiki/outputs/triage-queue.md` and stop for that file.
+3. Execute routing actions:
+   - `create_entity` — if target file doesn't exist, create with full frontmatter; if it does, append a dated section
+   - `create_source_summary` — write 200-500 word synthesis into `wiki/sources/`
+   - `create_decision` — use the decision frontmatter with `review_date = decided_on + 90 days`
+   - `append_to_area` — append a dated entry; NEVER overwrite existing area content
+4. Rebuild `wiki/index.md` with new entries.
+5. Append a one-line event to `wiki/log.md`: `## [{date}] ingest | {n} files | {entities-touched}`.
+6. Move the source file into `raw/inbox/.processed/`.
+
+**Acceptance:** every ingested file is either in `.processed/` or logged in the triage queue; `index.md` and `log.md` both reflect the run; no file under `raw/` was modified.
+
+### 2. COMPILE — `/{{VAULT_NAME}}-compile`
+
+**Input:** the current `wiki/` state.
+**Output:** regenerated `wiki/index.md` and any derived rollups (e.g. `wiki/syntheses/interactions-rolling/`).
+
+Use this when the vault's shape has drifted (manual edits in Obsidian, batch imports) and the index is stale. Read every entity/source/synthesis page's frontmatter; rebuild `index.md` from scratch. Do not touch content pages.
+
+**Acceptance:** `index.md` totals match the actual file counts; every page listed exists; no file besides derived indexes was modified.
+
+### 3. QUERY — `/{{VAULT_NAME}}-query "..."`
+
+**Input:** a user question.
+**Output:** a filed answer at `wiki/outputs/{question-slug}.md` with `[[wikilink]]` citations.
+
+Steps:
+1. Read `wiki/index.md` first.
+2. Identify relevant pages from index summaries; read those pages (not more).
+3. Synthesize an answer, citing every non-trivial claim with a `[[wikilink]]`.
+4. Save the answer to `wiki/outputs/` and append an event to `log.md`.
+
+**Acceptance:** every factual claim traces to at least one wikilink; answer file has full frontmatter; no invented facts (use `[unverified]` marker).
+
+### 4. LINT — `/{{VAULT_NAME}}-lint`
+
+Weekly health check. Report to `wiki/outputs/lint-report-{YYYY-MM-DD}.md`.
+
+Checks:
+- **Orphan pages** — pages with zero inbound `[[wikilinks]]`
+- **Stale areas** — `areas/` pages not updated in >30 days
+- **Broken wikilinks** — `[[...]]` targets that don't resolve to a file
+- **Frontmatter violations** — missing required fields, bad date formats, unknown `type`
+- **Decisions due for review** — `review_date <= today AND outcome == pending`
+- **Triage queue backlog** — items untriaged for >7 days
+- **Audience mismatch** — pages with `audience: external` not in `wiki/external/`, or vice versa
+
+**Acceptance:** report is written, every finding has a file path, no content pages modified by lint itself (lint observes, doesn't fix).
+
+---
+
+## Hard NEVER rules
+
+1. **NEVER write to `raw/`.** That directory is immutable. If you think you need to edit a raw file, you are wrong — write a source summary in `wiki/sources/` instead.
+2. **NEVER delete files.** Move to `wiki/concepts/archive/` (for concept-level content) or `_graveyard/` (for genuinely dead pages). Deletion destroys wikilink history.
+3. **NEVER rename a file without updating every `[[wikilink]]` that points at it** in the same commit.
+4. **NEVER edit `CLAUDE.md` without the user's explicit request.** Schema changes are a human decision.
+5. **NEVER commit before a `lint` pass.** A dirty lint report is fine; a skipped lint is not.
+6. **NEVER invent facts.** Mark any claim you can't trace to a source with `[unverified]`.
+7. **NEVER write area pages from scratch.** Always append dated entries — the chronological accumulation IS the value.
+8. **NEVER auto-promote a page from `internal` to `external` audience.** That decision is always the user's.
+
+---
+
+## Cross-references
+
+- **Agent (capture layer):** {{AGENT_REPO}} — named {{AGENT_NAME}}. It writes into `raw/` via deterministic (non-LLM) hooks. You never run it; it never runs you.
+- **Ops (orchestration):** {{OPS_REPO}} — runs `ingest`, `compile`, `query`, `lint` on schedule. Logs live there, not here.
+- **Local root:** {{LOCAL_ROOT}} — the parent directory containing this vault alongside its agent and ops siblings.
+- **Pattern origin:** Karpathy's "LLM Knowledge Bases" — `raw/` + `wiki/` + `CLAUDE.md` three-layer.

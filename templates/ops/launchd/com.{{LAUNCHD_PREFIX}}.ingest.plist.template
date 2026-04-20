@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.{{LAUNCHD_PREFIX}}.ingest.plist
+
+  Scheduled wiki ingest for the {{PROJECT_NAME}} vault. Runs the 2-pass
+  Claude classify + ingest pipeline over {{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/inbox/.
+
+  Off-hour schedule rationale:
+    Two fires per day — 08:17 and 20:43. Minutes deliberately not :00/:30
+    to avoid the same thundering-herd issue as the daily-backup plist.
+    Morning fire catches overnight captures; evening fire catches the day's.
+
+  Cost profile (rough): ~$0.10-$0.20 per fire depending on inbox volume.
+  If you have multiple vaults, stagger their ingest plists by a few minutes
+  each (e.g. 08:17, 08:23, 08:31) to keep Anthropic API concurrency low.
+
+  Install:
+    ln -sf {{LOCAL_ROOT}}/_ops/launchd/com.{{LAUNCHD_PREFIX}}.ingest.plist \
+      ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.ingest.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{LAUNCHD_PREFIX}}.ingest</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{LOCAL_ROOT}}/_ops/run-ingest.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>{{LOCAL_ROOT}}/_ops</string>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Hour</key><integer>8</integer>
+      <key>Minute</key><integer>17</integer>
+    </dict>
+    <dict>
+      <key>Hour</key><integer>20</integer>
+      <key>Minute</key><integer>43</integer>
+    </dict>
+  </array>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>{{LOCAL_ROOT}}/_ops/logs/ingest.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>{{LOCAL_ROOT}}/_ops/logs/ingest.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/{{HOME_USER}}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>

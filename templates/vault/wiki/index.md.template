@@ -1,0 +1,83 @@
+---
+title: "{{VAULT_NAME}} Wiki Index"
+type: index
+vault: {{VAULT_NAME}}
+date_modified: YYYY-MM-DD
+total_pages: 0
+---
+
+# {{VAULT_NAME}} Wiki Index
+
+*Auto-rebuilt by the `compile` and `ingest` ops. Manual edits will be overwritten on the next run.*
+
+*Scope: {{DOMAIN_DESCRIPTION}}*
+
+---
+
+## Active Projects (0)
+
+*None yet.*
+
+<!--
+Format: - [[concepts/projects/{slug}]] - {one-line summary} | due: YYYY-MM-DD
+-->
+
+## Areas (0)
+
+*None yet.*
+
+<!--
+Format: - [[concepts/areas/{slug}]] - {one-line summary} | last update: YYYY-MM-DD
+-->
+
+## People (0 total)
+
+*None yet.*
+
+<!--
+Format: - [[entities/people/{slug}]] - {role} at [[entities/companies/{slug}]] | last: YYYY-MM-DD | follow-up due: YYYY-MM-DD
+-->
+
+## Companies (0 total)
+
+*None yet.*
+
+## Tools (0 total)
+
+*None yet.*
+
+## Books (0 total)
+
+*None yet.*
+
+## Places (0 total)
+
+*None yet.*
+
+## Recent Decisions (last 10)
+
+*None yet.*
+
+<!--
+Format: 1. [YYYY-MM-DD] [[syntheses/decisions/{slug}]] - {decision title} (review: YYYY-MM-DD)
+-->
+
+## Concepts (0 atoms, 0 frameworks)
+
+*None yet.*
+
+## Meetings (0)
+
+*None yet.*
+
+## Triage Queue
+
+*See [[outputs/triage-queue]] for items needing human review.*
+
+## Recently Added (last 7 days)
+
+*None yet.*
+
+<!--
+Format: 1. [YYYY-MM-DD] [[path/to/page]] ({type} - {subtype})
+-->

@@ -1,0 +1,173 @@
+# {{PROJECT_NAME}} — Initial Setup
+
+End-to-end walkthrough: from zero to a working daily-backup at 03:33 and a scheduled ingest pipeline.
+
+This guide assumes you have already run the meta-template's scaffolder, so `{{LOCAL_ROOT}}/{{VAULT_NAME}}/`, `{{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/`, and `{{LOCAL_ROOT}}/_ops/` exist locally but are not yet on GitHub.
+
+---
+
+## Step 1 — Create the 3 GitHub repos (~5 min)
+
+```bash
+gh repo create {{GITHUB_USER}}/{{VAULT_REPO}}  --private --description "{{PROJECT_NAME}} Obsidian knowledge base"
+gh repo create {{GITHUB_USER}}/{{AGENT_REPO}}  --private --description "{{PROJECT_NAME}} Telegram librarian"
+gh repo create {{GITHUB_USER}}/{{OPS_REPO}}    --private --description "{{PROJECT_NAME}} orchestration (launchd, backup, ingest)"
+```
+
+All three repos are PRIVATE. You can mirror a subset publicly later if you add an external-publish pipeline, but the default is private-only.
+
+---
+
+## Step 2 — `git init` each repo locally and push the initial commit (~5 min)
+
+```bash
+# Vault
+cd {{LOCAL_ROOT}}/{{VAULT_NAME}}
+git init -b main
+git remote add origin git@github.com:{{GITHUB_USER}}/{{VAULT_REPO}}.git
+git add .
+git commit -m "init: {{PROJECT_NAME}} vault scaffold"
+git push -u origin main
+
+# Agent
+cd {{LOCAL_ROOT}}/agents/{{AGENT_NAME}}
+git init -b main
+git remote add origin git@github.com:{{GITHUB_USER}}/{{AGENT_REPO}}.git
+git add .
+git commit -m "init: {{PROJECT_NAME}} librarian scaffold"
+git push -u origin main
+
+# Ops
+cd {{LOCAL_ROOT}}/_ops
+git init -b main
+git remote add origin git@github.com:{{GITHUB_USER}}/{{OPS_REPO}}.git
+git add .
+git commit -m "init: {{PROJECT_NAME}} ops scaffold"
+git push -u origin main
+```
+
+Verify: visit each repo on GitHub, confirm the initial commit is there.
+
+---
+
+## Step 3 — Confirm scripts are executable (~1 min)
+
+```bash
+chmod +x {{LOCAL_ROOT}}/_ops/scripts/daily-backup.sh
+chmod +x {{LOCAL_ROOT}}/_ops/run-ingest.sh
+chmod +x {{LOCAL_ROOT}}/_ops/run-lint.sh
+```
+
+---
+
+## Step 4 — Verify Claude Code OAuth keychain entry (~1 min)
+
+The ingest and lint wrappers pull the OAuth token from the macOS keychain. Confirm it exists:
+
+```bash
+security find-generic-password -s "Claude Code-credentials" -w | head -c 30
+# Expected: sk-ant-oat01-...
+```
+
+If missing: open the Claude Code app, sign in, wait 30 seconds, try again.
+
+---
+
+## Step 5 — Wire up launchd plists (~3 min)
+
+```bash
+mkdir -p ~/Library/LaunchAgents
+for f in {{LOCAL_ROOT}}/_ops/launchd/com.{{LAUNCHD_PREFIX}}.*.plist; do
+  ln -sf "$f" ~/Library/LaunchAgents/
+  launchctl load -w ~/Library/LaunchAgents/$(basename "$f")
+done
+
+# Verify
+launchctl list | grep {{LAUNCHD_PREFIX}}
+```
+
+Expected (assuming the agent's KeepAlive plist lives in `agents/{{AGENT_NAME}}/` — if the agent template puts it in `_ops/launchd/`, it shows up here too):
+
+- `{{LAUNCHD_PREFIX}}.daily-backup` — scheduled at 03:33.
+- `{{LAUNCHD_PREFIX}}.ingest` — scheduled at 08:17 and 20:43.
+- `{{LAUNCHD_PREFIX}}.lint` — scheduled at 06:47.
+
+A PID dash in `launchctl list` output means "loaded but not currently running — waiting for schedule." That is correct for scheduled jobs.
+
+---
+
+## Step 6 — Run the first manual backup to verify (~2 min)
+
+```bash
+{{LOCAL_ROOT}}/_ops/scripts/daily-backup.sh
+```
+
+Expected output: three per-repo sections with `PUSHED ok` or `NO CHANGES`. Then check the JSON:
+
+```bash
+cat {{LOCAL_ROOT}}/_ops/logs/daily-backup-last.json | python3 -m json.tool
+```
+
+Expected shape:
+
+```json
+{
+  "run_id": "2026-04-20T153312",
+  "summary": {"ok": 0, "no_change": 3, "locked": 0, "failed": 0},
+  "repos": [
+    {"name": "{{VAULT_REPO}}",  "status": "no_change", "head": "a1b2c3d4e5f6"},
+    {"name": "{{AGENT_REPO}}",  "status": "no_change", "head": "..."},
+    {"name": "{{OPS_REPO}}",    "status": "no_change", "head": "..."}
+  ]
+}
+```
+
+On subsequent runs, when you have pending edits, `ok` increments and the repo status becomes `committed_pushed`.
+
+---
+
+## Step 7 — Run the first manual ingest to verify (~3 min)
+
+Drop a test file into the inbox:
+
+```bash
+cat > {{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/inbox/test-001.md <<'EOF'
+---
+source: manual
+date: 2026-04-20T15:00:00+08:00
+---
+
+This is a test note. Classify it and ingest it.
+EOF
+
+{{LOCAL_ROOT}}/_ops/run-ingest.sh
+tail -n 20 {{LOCAL_ROOT}}/_ops/logs/ingest.run.log
+```
+
+Expected log: "pass-1 classify (haiku)" -> "pass-2 ingest (sonnet)" -> "ingest done". The test file should be moved to `raw/inbox/.processed/` and a corresponding wiki entry appears under `wiki/`.
+
+---
+
+## Step 8 — Confirm the scheduled backup fires (~1 day)
+
+Come back tomorrow. Check:
+
+```bash
+tail {{LOCAL_ROOT}}/_ops/logs/daily-backup.log
+```
+
+You should see a new run block timestamped ~03:33. If not:
+
+```bash
+launchctl list | grep daily-backup
+# Look at the 3rd column — that's the last exit code. 0 = success, non-zero = inspect .err.log
+cat {{LOCAL_ROOT}}/_ops/logs/daily-backup.err.log
+```
+
+---
+
+## You are done
+
+From this point on, the daily-backup runs itself every night at 03:33, the ingest runs every morning and evening, and the lint runs once a day at 06:47. Untouched for weeks at a time, every edit you make to any of the three repos will end up on GitHub the same night.
+
+If the Mac dies, follow `RESTORE.md` for the <= 2-hour rebuild on a fresh machine.

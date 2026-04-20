@@ -1,0 +1,59 @@
+{
+  "_README": [
+    "========================================================================",
+    "auth.json — Hermes credential pool for {{AGENT_NAME}}",
+    "========================================================================",
+    "",
+    "DO NOT commit the real `auth.json`. The repo's .gitignore already lists",
+    "it; double-check before pushing. This `.example` file IS safe to commit",
+    "and exists purely to document the expected shape.",
+    "",
+    "LEGAL / TOS CONSTRAINT:",
+    "  No `anthropic` provider may appear in this file. Ever. Claude is used",
+    "  only via the official `claude -p` CLI, invoked from `_ops` scripts",
+    "  that authenticate through the system keychain (not here). See SOUL.md.",
+    "",
+    "Tier 1 — openai-codex:",
+    "  ChatGPT Pro OAuth device-code flow. Obtain via:",
+    "    hermes auth login openai-codex",
+    "  Hermes writes `access_token` + `refresh_token` into this file on",
+    "  success. Rotate by re-running the login.",
+    "",
+    "Tier 2 — copilot (optional fallback):",
+    "  GitHub Copilot PAT. Generate at https://github.com/settings/tokens",
+    "  with `copilot` scope. Store the raw token in `api_key`.",
+    "",
+    "Permissions: after populating, run `chmod 600 auth.json`.",
+    "========================================================================"
+  ],
+  "version": 1,
+  "providers": {},
+  "credential_pool": {
+    "openai-codex": [
+      {
+        "id": "REPLACE_WITH_SHORT_ID",
+        "label": "chatgpt-pro-primary",
+        "auth_type": "oauth",
+        "priority": 0,
+        "source": "manual:device_code",
+        "access_token": "REPLACE_WITH_OPENAI_CODEX_ACCESS_TOKEN",
+        "refresh_token": "REPLACE_WITH_OPENAI_CODEX_REFRESH_TOKEN",
+        "base_url": "https://chatgpt.com/backend-api/codex",
+        "last_refresh": null,
+        "request_count": 0
+      }
+    ],
+    "copilot": [
+      {
+        "id": "REPLACE_WITH_SHORT_ID",
+        "label": "github-copilot-fallback",
+        "auth_type": "api_key",
+        "priority": 1,
+        "source": "manual",
+        "api_key": "REPLACE_WITH_GITHUB_COPILOT_PAT",
+        "request_count": 0
+      }
+    ]
+  },
+  "updated_at": null
+}

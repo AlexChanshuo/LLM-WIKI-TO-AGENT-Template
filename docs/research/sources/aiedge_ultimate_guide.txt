@@ -1,0 +1,100 @@
+Claude Code + Obsidian Ultimate Guide (build an AI second brain)
+AI Edge (@aiedge_, by Miles Deutscher) · Apr 8, 2026
+URL: https://x.com/aiedge_/status/2041908011078447222
+Stats: 26 replies · 154 reposts · 1,022 likes · 940K views
+
+---
+
+Claude Code + Obsidian is the most powerful AI combo I've ever used.
+I literally built an AI second brain that contains everything I think, read, write, research online, and more. It contains my business plans, all my YouTube videos (ever), articles I've written, and anything else important to me.
+
+Claude Code + Obsidian has gone mega-viral across all platforms, and for good reason.
+
+For me personally, this AI system has taken the biggest mental load off my mind, allowing me to focus on what really matters in my business and personal life.
+
+This might look complicated, but it literally only takes 5 minutes to set up, and the crazy part is, it improves over time with a built-in memory system.
+
+## Pre-game
+
+I cannot take all the credit for this system, as it was inspired by Andrej Karpathy's viral tweet about LLM Knowledge Bases (Apr 3, 2026).
+
+The viral problem this solves: the constant need to re-prompt, add context, and start from scratch every time you start a new chat or migrate to a new AI.
+
+## How this system works (4 moving parts)
+
+1. **Your data** — articles, notes, transcripts, ideas, etc.
+2. **Organization** — done by Claude Code in Obsidian
+3. **Instant Prompting** — ask your database anything anytime
+4. **Evolving Memory** — gets smarter over time
+
+## The power of this system
+
+As humans, we only have so much mental bandwidth. We forget things, sometimes it's hard to connect ideas, and we can only keep track of so much.
+
+Using this 4-piece system frees up mental bandwidth and allows Obsidian/Claude Code to connect, visualize, and interpret your data. Your ideas are linked together, your notes connect to other notes, and you can extract them all via Claude.
+
+## Setting up your AI brain (in 5 minutes)
+
+1. **Download Obsidian** — https://obsidian.md/
+2. **Set up your Vault** — name it whatever (mine is "Obsidian Vault"). This is where Obsidian stores notes as MD (markdown) files.
+3. **Claude Code setup** — easiest is the desktop app. In the main chatbox, click "Select Folder" and find your Obsidian Vault.
+4. **System Prompt** — paste Karpathy's prompt:
+   https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+
+[Article then quotes Karpathy's full "LLM Wiki" prompt verbatim — same text as in defileo's article. Covers: core idea (incremental wiki vs RAG), architecture (raw / wiki / schema), operations (Ingest / Query / Lint), index.md and log.md, optional CLI tools (qmd), tips (Web Clipper, local images, graph view, Marp, Dataview), why it works, Memex/Vannevar Bush reference, and the "Note" disclaimer about it being intentionally abstract.]
+
+## (Continuing AI Edge's original instructions:)
+
+Your input should look like this: [screenshot caption]
+
+**Tip:** You literally never need to touch Obsidian if you don't want to. Just give Claude Code access to the MD folder and the input data, and that data will appear in your Obsidian second brain (since Claude Code can modify the folder).
+
+### 5. Building your database
+
+After inputting the initial system prompt, you essentially input data to start building your database. Think: notes, CSV files, MD/text, etc.
+
+Tips:
+- Export some data from your pre-existing notes app
+- If you use Notion, export CSV files
+- Ask your Claude chat (or other LLMs) to give you information about yourself so you can inject it into your second brain
+- If you have articles, bookmarks, ideas, etc., go ahead and input them now — this is the time to get at least some initial data in your second brain, and you can always add to it later
+- Building a database with lots of data takes time
+
+That's it; your AI second brain is now fully set up and ready to run.
+
+## Pro Tips
+
+### 1. Obsidian Chrome Extension
+The Obsidian Chrome Extension allows you to click "add to Obsidian" on any data source. I use this often to add articles, online data, research, and more.
+
+However, this adds the dataset as a lone source. Then tell Claude Code: "Hey, I just input [x] into Obsidian; please ingest the data into my Wiki." Claude Code will then make connections and links to other data sources within your second brain/Wiki.
+
+### 2. Separate folders
+**Karpathy recommends keeping two separate folders/Vaults:**
+- One for business/work
+- One for personal/goals
+
+I've found this to be the ideal setup.
+
+### 3. Practicality
+One of the best use cases is simply making my LLM prompts more accurate. With access to my entire life, business plans, writing context, etc., it's very powerful for creating curated (and up-to-date) mega prompts.
+
+### 4. Orphans
+"Orphans" in Obsidian let you see which data points lack connections. Useful for identifying ideas to build on and potential "weak points" in your database that don't overlap much. Find the toggle by tapping the 3 dots in the top right.
+
+## Potential Cons
+
+### 1. You're not a visual person
+A main benefit is visualization. If you don't benefit from visualization tools, this may not be for you.
+
+### 2. Maintenance
+If you don't want to maintain a database, this isn't for you. Maintenance isn't much, but without inputting data, the system is useless.
+
+### 3. Storage
+MD files take up storage on your device. Just keep that in mind.
+
+## Final Thoughts
+
+Free cheatsheet: https://www.aiedgehq.co/ (sign up for free newsletter and join Instagram community for the entire Obsidian × Claude Code cheatsheet)
+
+For more AI content: follow @aiedge_ — uploads AI articles 2-3x/week.

@@ -1,0 +1,44 @@
+# =============================================================================
+# .gitignore for {{AGENT_NAME}} — a Hermes Telegram librarian
+# =============================================================================
+# The repo directory IS HERMES_HOME, so everything Hermes generates at runtime
+# lands at the repo root. That runtime state is per-machine and must never be
+# committed. What IS tracked: SOUL.md, README.md, config.yaml, hooks/, skills/,
+# scripts/, .example files.
+# =============================================================================
+
+# --- Secrets (NEVER commit) --------------------------------------------------
+# auth.json holds OpenAI Codex OAuth tokens + optional GitHub Copilot PAT.
+# .env holds TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS, OPENAI_API_KEY, etc.
+auth.json
+auth.lock
+.env
+
+# --- Hermes runtime state (per-machine, regenerated each session) -----------
+*.pid                       # gateway.pid and similar
+gateway_state.json
+channel_directory.json
+state.db                    # SQLite session store
+state.db-*                  # SQLite WAL / shm sidecars
+sessions/                   # per-conversation JSONL logs
+memories/                   # Hermes long-term memory
+cache/                      # Hermes model/response caches
+sandboxes/                  # tool sandbox scratch dirs
+logs/                       # hook + gateway logs
+platforms/                  # per-platform pairing + rate-limit state
+models_dev_cache.json
+ollama_cloud_models_cache.json
+.skills_prompt_snapshot.json
+audio_cache/                # local voice cache (if materialized in-repo)
+image_cache/                # local image cache (if materialized in-repo)
+cron/                       # per-agent cron state
+
+# --- OS / editor junk --------------------------------------------------------
+.DS_Store
+*.swp
+*~
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/

@@ -1,0 +1,289 @@
+"""
+auto-save-inbox handler for {{AGENT_NAME}}.
+
+This file is a TEMPLATE. A bootstrapping script substitutes {{...}} placeholders
+and copies it to <HERMES_HOME>/hooks/auto-save-inbox/handler.py.
+
+Why this hook exists (read before editing)
+-------------------------------------------
+Letting an LLM decide whether and where to save an inbound message is
+unreliable — measured drop rate was roughly 5-15% over long conversations,
+with failure modes ranging from "no file written" to "file written to wrong
+path" to "filename hallucinated". Those failures are silent: the LLM still
+replies confidently to the user.
+
+The fix is this hook. It fires on `agent:start`, BEFORE any LLM inference,
+and writes the inbound message to disk deterministically — pure Python,
+filesystem + regex + subprocess, no model calls. If this function crashes
+or is disabled, messages get lost. Keep it small, keep it synchronous on
+the write path, and never add an LLM call to it.
+
+Contract
+--------
+- Fires on: `agent:start`
+- Platform filter: `telegram`
+- Writes to: {{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/inbox/{compact_ts}-{user_id}-{hash}.md
+- Copies assets to: {{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/assets/
+- Atomic rename via os.replace() on a sibling tempfile — no partial writes
+- Idempotent: skip if target file already exists
+- Error-safe: log-and-return on every failure; never raises into the LLM path
+
+Environment variables (set in <HERMES_HOME>/.env)
+-------------------------------------------------
+  VAULT_PATH        absolute path to this agent's bound vault
+                    (e.g. {{LOCAL_ROOT}}/{{VAULT_NAME}})
+  HERMES_HOME       this agent's home directory
+  HERMES_HOME_NAME  librarian identifier (e.g. {{AGENT_NAME}})
+"""
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+# --------------------------- Configuration ----------------------------------
+
+VAULT_PATH = Path(os.environ.get("VAULT_PATH", "")).expanduser()
+HERMES_HOME = Path(os.environ.get("HERMES_HOME", "")).expanduser()
+HERMES_NAME = os.environ.get("HERMES_HOME_NAME", "{{AGENT_NAME}}")
+
+INBOX = VAULT_PATH / "raw" / "inbox"
+ASSETS = VAULT_PATH / "raw" / "assets"
+
+AUDIO_CACHE = Path.home() / ".hermes" / "audio_cache"
+IMAGE_CACHE = Path.home() / ".hermes" / "image_cache"
+
+LOG_PATH = HERMES_HOME / "logs" / "auto-save-inbox.log"
+
+# Only copy cache files modified within this window before the hook fired.
+MEDIA_RECENT_SECONDS = 90
+
+# Drive folder URLs trigger the optional drive-ingest pipeline.
+DRIVE_URL_PAT = re.compile(
+    r"https?://drive\.google\.com/drive/(?:mobile/)?folders/[a-zA-Z0-9_-]+",
+    re.IGNORECASE,
+)
+DRIVE_INGEST_SH = Path("{{LOCAL_ROOT}}/{{OPS_REPO}}/drive-ingest.sh")
+
+
+# --------------------------- Helpers ----------------------------------------
+
+def _log(msg: str) -> None:
+    """Append to the hook log. Never raises."""
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with LOG_PATH.open("a", encoding="utf-8") as f:
+            ts = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+            f.write(f"{ts} {msg}\n")
+    except Exception:
+        pass  # never crash the hook
+
+
+def _read_latest_user_msg(session_id: str):
+    """Return the most recent {role: 'user'} record from the session JSONL.
+
+    Hermes truncates the message in the hook ctx to ~500 chars; the full body
+    lives in the session log. Read from there.
+    """
+    if not session_id or not HERMES_HOME.is_dir():
+        return None
+    sess_path = HERMES_HOME / "sessions" / f"{session_id}.jsonl"
+    if not sess_path.is_file():
+        return None
+    last_user = None
+    try:
+        with sess_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if rec.get("role") == "user":
+                    last_user = rec
+    except Exception as e:
+        _log(f"WARN session read failed for {sess_path}: {e}")
+    return last_user
+
+
+def _recent_media(cache_dir: Path, since_epoch: float):
+    """Return cache files modified within MEDIA_RECENT_SECONDS of the trigger."""
+    if not cache_dir.is_dir():
+        return []
+    files = []
+    for p in cache_dir.iterdir():
+        try:
+            if p.is_file() and p.stat().st_mtime >= since_epoch:
+                files.append(p)
+        except Exception:
+            continue
+    return sorted(files, key=lambda x: x.stat().st_mtime)
+
+
+def _copy_to_assets(src: Path, ts_slug: str) -> Path:
+    ASSETS.mkdir(parents=True, exist_ok=True)
+    dest = ASSETS / f"{ts_slug}-{src.name}"
+    try:
+        shutil.copy2(src, dest)
+    except Exception as e:
+        _log(f"WARN failed to copy {src} -> {dest}: {e}")
+    return dest
+
+
+def _yaml_dump(d: dict) -> str:
+    """Minimal YAML emitter — no extra deps, stable key order."""
+    out = []
+    for k, v in d.items():
+        if v is None:
+            out.append(f"{k}:")
+        elif isinstance(v, bool):
+            out.append(f"{k}: {'true' if v else 'false'}")
+        elif isinstance(v, (int, float)):
+            out.append(f"{k}: {v}")
+        elif isinstance(v, list):
+            if not v:
+                out.append(f"{k}: []")
+            else:
+                out.append(f"{k}:")
+                for item in v:
+                    out.append(f"  - {json.dumps(item, ensure_ascii=False)}")
+        else:
+            out.append(f"{k}: {json.dumps(str(v), ensure_ascii=False)}")
+    return "\n".join(out) + "\n"
+
+
+def _write_atomic(target: Path, content: str) -> None:
+    """Write via tempfile + os.replace — no partial writes, same-dir rename."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(target.suffix + ".tmp")
+    tmp.write_text(content, encoding="utf-8")
+    tmp.replace(target)  # atomic on POSIX, same-filesystem rename
+
+
+# --------------------------- Hook entry point -------------------------------
+
+async def handle(event_type: str, context: dict) -> None:
+    """Hermes hook entry. Must not raise — log and return on every error."""
+    try:
+        if event_type != "agent:start":
+            return
+        if context.get("platform") != "telegram":
+            return
+        if not VAULT_PATH or not VAULT_PATH.is_dir():
+            _log(f"ERROR VAULT_PATH not set or missing: {VAULT_PATH!r}")
+            return
+
+        session_id = context.get("session_id") or ""
+        user_id = context.get("user_id") or "owner"
+        chat_id = context.get("chat_id") or ""
+
+        # Hook ctx is truncated — pull the full body from the session log.
+        user_rec = _read_latest_user_msg(session_id)
+        full_text = (user_rec or {}).get("content") or context.get("message") or ""
+        if not full_text.strip():
+            _log(f"SKIP empty message for session {session_id}")
+            return
+
+        # Idempotent filename: timestamp + user_id + short hash of body prefix.
+        ts_iso = (
+            (user_rec or {}).get("timestamp")
+            or datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+        )
+        # Compact timestamp: YYYYMMDDTHHMMSS
+        compact_ts = re.sub(
+            r"[^0-9T]",
+            "",
+            ts_iso.split(".")[0].replace("-", "").replace(":", ""),
+        )[:15]
+        body_hash = f"{abs(hash(full_text[:200])) % 10**6:06d}"
+        filename = f"{compact_ts}-{user_id}-{body_hash}.md"
+        target = INBOX / filename
+
+        if target.exists():
+            _log(f"IDEMPOTENT skip — already saved: {target.name}")
+            return
+
+        # Snapshot media cache files modified shortly before this hook fired.
+        since = time.time() - MEDIA_RECENT_SECONDS
+        audio_files = _recent_media(AUDIO_CACHE, since)
+        image_files = _recent_media(IMAGE_CACHE, since)
+
+        media_sections = []
+        copied_assets = []
+        ts_slug = compact_ts
+
+        for src in audio_files:
+            dest = _copy_to_assets(src, ts_slug)
+            copied_assets.append(str(dest.relative_to(VAULT_PATH)))
+            media_sections.append(
+                f"## Voice (original)\n\n"
+                f"Source cache file: `{src}`\n"
+                f"Copied to: `{dest.relative_to(VAULT_PATH)}`"
+            )
+        for src in image_files:
+            dest = _copy_to_assets(src, ts_slug)
+            copied_assets.append(str(dest.relative_to(VAULT_PATH)))
+            media_sections.append(
+                f"## Image (original)\n\n"
+                f"Source cache file: `{src}`\n"
+                f"Copied to: `{dest.relative_to(VAULT_PATH)}`"
+            )
+
+        frontmatter = {
+            "source": "telegram",
+            "agent": HERMES_NAME,
+            "session_id": session_id,
+            "user_id": user_id,
+            "chat_id": chat_id,
+            "date": ts_iso,
+            "preprocessing": "auto-save-hook",
+            "media_count": len(audio_files) + len(image_files),
+            "assets": copied_assets,
+        }
+        parts = [
+            "---",
+            _yaml_dump(frontmatter).rstrip(),
+            "---",
+            "",
+            "## Message",
+            "",
+            full_text.strip(),
+            "",
+        ]
+        if media_sections:
+            parts.append("")
+            parts.extend(media_sections)
+        content = "\n".join(parts).rstrip() + "\n"
+
+        _write_atomic(target, content)
+        _log(
+            f"OK saved {target.name} "
+            f"({len(full_text)} chars body, {len(copied_assets)} assets)"
+        )
+
+        # Optional: Drive folder ingest — spawn detached subprocess if a Drive
+        # URL is in the body and the script exists. Never block the agent loop.
+        try:
+            drive_urls = DRIVE_URL_PAT.findall(full_text)
+            if drive_urls and DRIVE_INGEST_SH.is_file():
+                url = drive_urls[0]
+                subprocess.Popen(
+                    [str(DRIVE_INGEST_SH), "{{VAULT_NAME}}", url, str(user_id)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,  # detach
+                )
+                _log(f"DRIVE spawned drive-ingest for {url[:80]}...")
+        except Exception as e:
+            _log(f"WARN drive-ingest spawn failed: {e!r}")
+
+    except Exception as e:
+        # Defense in depth — Hermes swallows handler exceptions, but log locally too.
+        _log(f"ERROR unhandled exception: {e!r}")

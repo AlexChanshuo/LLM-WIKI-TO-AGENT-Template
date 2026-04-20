@@ -1,0 +1,161 @@
+# {{PROJECT_NAME}} — Hermes Librarian Setup
+
+From zero to a working Telegram bot replying in a vault-bound channel. This guide assumes `{{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/` has been scaffolded by the meta-template (so `config.yaml`, `SOUL.md`, `hooks/`, and `scripts/` already exist), and the vault at `{{LOCAL_ROOT}}/{{VAULT_NAME}}/` is initialized.
+
+---
+
+## Step 1 — Create the Telegram bot via @BotFather (~3 min)
+
+1. Open Telegram, search for `@BotFather`, press Start.
+2. Send `/newbot`.
+3. Pick a display name (e.g. "{{PROJECT_NAME}} Librarian").
+4. Pick a username ending in `bot` (e.g. `{{PROJECT_NAME}}_librarian_bot`). Save this as `{{TELEGRAM_BOT_HANDLE}}`.
+5. BotFather replies with the bot token. Save it — you will paste it into `.env` next.
+
+Optional but recommended: `/setprivacy` -> Disable (so the bot sees all messages in groups, not just replies to it).
+
+---
+
+## Step 2 — Get your Telegram user ID (~1 min)
+
+The librarian refuses every message by default. Add yourself to the allowlist:
+
+1. DM `@userinfobot`, press Start.
+2. It replies with your user ID (a number like `123456789`).
+
+---
+
+## Step 3 — Fill in `.env` and `auth.json` (~5 min)
+
+```bash
+cd {{LOCAL_ROOT}}/agents/{{AGENT_NAME}}
+
+# Copy the example and edit
+cp .env.example .env
+$EDITOR .env
+```
+
+Set at minimum:
+
+```
+TELEGRAM_BOT_TOKEN=<the token from @BotFather>
+TELEGRAM_ALLOWED_USERS=<your Telegram user ID from Step 2>
+VAULT_INBOX={{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/inbox
+OPENAI_API_KEY=<optional, only if you want voice transcription>
+```
+
+Then `auth.json` for the agent's upstream LLM OAuth (typically ChatGPT Codex — see the agent repo's README for the exact OAuth flow; this is NOT Anthropic). Paste it from your secret vault (if restoring) or run the agent's first-time OAuth setup script.
+
+Lock down permissions:
+
+```bash
+chmod 600 .env auth.json
+```
+
+Save both files as Secure Notes in your secret vault — `{{PROJECT_NAME}}: {{AGENT_NAME}}/.env` and `{{PROJECT_NAME}}: {{AGENT_NAME}}/auth.json`. These are the ONLY authoritative copies once the Mac dies.
+
+---
+
+## Step 4 — Register the agent's launchd plist (~2 min)
+
+The agent template ships with a KeepAlive plist (so the bot restarts if it crashes). Typical location:
+
+```bash
+ln -sf {{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/launchd/com.{{LAUNCHD_PREFIX}}.{{AGENT_NAME}}.plist \
+  ~/Library/LaunchAgents/
+launchctl load -w ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.{{AGENT_NAME}}.plist
+
+# Verify
+launchctl list | grep {{LAUNCHD_PREFIX}}.{{AGENT_NAME}}
+# Expected: a line with a PID > 0 (the gateway is running)
+```
+
+If the plist lives in `_ops/launchd/` instead, adjust the path.
+
+---
+
+## Step 5 — Confirm the auto-save hook is wired (~1 min)
+
+The librarian has a deterministic hook (`hooks/auto-save-inbox.py` or similar) that writes every incoming message to `{{VAULT_INBOX}}` as a markdown file. This hook runs in Python, NOT in the LLM — per the rule "keep LLMs out of critical paths." Confirm it is registered:
+
+```bash
+grep -A2 "auto-save" {{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/config.yaml
+```
+
+Expected: a hook block with `on: message.received` pointing to the Python script.
+
+---
+
+## Step 6 — Smoke test (~2 min)
+
+1. Open Telegram, DM `@{{TELEGRAM_BOT_HANDLE}}`.
+2. Send "hi". Expect a reply within ~5 seconds.
+3. Send a short text note like "Test note from setup."
+4. Within 1 second the file should appear:
+
+```bash
+ls -lt {{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/inbox/ | head -3
+```
+
+You should see a new file with today's timestamp in its name. Open it — it contains the message body plus frontmatter (source, Telegram message ID, sender, date).
+
+5. Wait for the next scheduled ingest (morning or evening) OR run it manually:
+
+```bash
+{{LOCAL_ROOT}}/_ops/run-ingest.sh
+```
+
+After ingest, a structured wiki entry (entity, decision, source summary — depending on what the message contained) should appear under `{{LOCAL_ROOT}}/{{VAULT_NAME}}/wiki/`.
+
+---
+
+## Step 7 — Optional: enable voice transcription (~2 min)
+
+If you set `OPENAI_API_KEY` in `.env`, voice notes are transcribed via Whisper at ~$0.006/minute of audio. Send a voice message to the bot and verify the resulting file in `raw/inbox/` contains the transcript inline.
+
+---
+
+## Daily cost estimate
+
+With a single librarian running:
+
+- LLM chat inference (with prompt caching): ~$0.50 - $2 / day at moderate use.
+- Whisper voice transcription: ~$0.05 - $0.10 / day.
+- Wiki ingest pipeline (Claude Code): ~$0.10 - $0.20 / day.
+
+Total: roughly $1 - $3 / day. If too expensive, downgrade the chat model in `config.yaml` (e.g. Haiku instead of Sonnet).
+
+---
+
+## Logs — where to look when something feels off
+
+```bash
+# Agent gateway
+tail -f {{LOCAL_ROOT}}/_ops/logs/{{AGENT_NAME}}.out.log
+tail -f {{LOCAL_ROOT}}/_ops/logs/{{AGENT_NAME}}.err.log
+
+# Ingest pipeline
+tail -f {{LOCAL_ROOT}}/_ops/logs/ingest.run.log
+
+# Daily backup
+tail -f {{LOCAL_ROOT}}/_ops/logs/daily-backup.log
+```
+
+---
+
+## Restart the agent manually
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.{{AGENT_NAME}}.plist
+launchctl load -w ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.{{AGENT_NAME}}.plist
+```
+
+KeepAlive=true means launchd auto-restarts on crash within 30 seconds. A manual reload is only needed after editing `.env` or `config.yaml`.
+
+---
+
+## What's next
+
+- After Step 6 smoke test passes, tune `SOUL.md` if the bot's voice feels off.
+- Watch `{{AGENT_NAME}}.out.log` for the first few days; if the auto-save hook mis-formats anything, fix the hook (deterministic code, not the LLM).
+- Save `.env` and `auth.json` to your secret vault as Secure Notes. The Mac can die — those files cannot be regenerated without them.

@@ -1,0 +1,48 @@
+---
+title: "{{VAULT_NAME}} Wiki Log"
+type: log
+vault: {{VAULT_NAME}}
+date_created: YYYY-MM-DD
+---
+
+# {{VAULT_NAME}} Wiki Log
+
+Append-only changelog of every op that touches `wiki/`. Each run of `ingest`, `compile`, or `lint` writes exactly one entry here.
+
+## Contract
+
+- **Append-only.** Never edit or delete an existing entry. If an op ran incorrectly, log a corrective follow-up entry below it.
+- **One heading per event.** Format: `## [YYYY-MM-DD HH:MM] {op} | {one-line summary}`
+- **Attribution is required.** Every entry identifies the op that ran (`ingest`, `compile`, `query`, `lint`) and, when available, the Claude model tier (e.g. `haiku-pass-1`, `sonnet-pass-2`).
+- **List every file the op created, updated, moved, or archived.** Use bullet lines with verb prefixes: `Created:`, `Updated:`, `Moved:`, `Archived:`, `Triaged:`.
+- **Source paths** always relative to the vault root (e.g. `wiki/entities/people/david-chen.md`).
+- Entries are in chronological order, newest at the bottom.
+
+---
+
+## [YYYY-MM-DD HH:MM] init | initial scaffold
+- Created: vault skeleton from `{{VAULT_NAME}}` template
+- Created: `CLAUDE.md`, `README.md`, `wiki/index.md`, `wiki/log.md`
+- Scaffolded folders: `entities/{people,companies,tools,books,places}`, `concepts/{projects,areas,resources,atoms,frameworks,archive}`, `sources`, `syntheses/{decisions,meetings,reflections,reading-notes}`, `outputs`
+
+<!--
+Example entries below show the standard event formats. Remove them once real ops have run.
+-->
+
+## [YYYY-MM-DD HH:MM] ingest | 1 file processed | 0 triaged | entities touched: {example-slugs}
+- Source: `raw/inbox/{YYYY-MM-DDThhmmss}-{id}.md` -> `raw/inbox/.processed/`
+- Created: `wiki/entities/people/{slug}.md`
+- Created: `wiki/sources/{YYYYMMDD}-{slug}.md`
+- Updated: `wiki/concepts/areas/{area-slug}.md` (appended dated entry)
+- Updated: `wiki/index.md`
+- Model: haiku-pass-1 (classify), sonnet-pass-2 (write)
+
+## [YYYY-MM-DD HH:MM] compile | index rebuilt | 0 content pages modified
+- Updated: `wiki/index.md` (regenerated from current frontmatter)
+- Pages counted: 0 entities, 0 concepts, 0 sources, 0 syntheses
+- Model: sonnet
+
+## [YYYY-MM-DD HH:MM] lint | weekly report | 0 issues found
+- Created: `wiki/outputs/lint-report-{YYYY-MM-DD}.md`
+- Checks run: orphan-pages, stale-areas, broken-wikilinks, frontmatter-violations, decisions-due, triage-backlog, audience-mismatch
+- Model: sonnet

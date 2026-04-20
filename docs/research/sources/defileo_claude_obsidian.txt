@@ -1,0 +1,155 @@
+Claude + Obsidian have to be illegal
+Defileo (@defileo) · Apr 9, 2026
+URL: https://x.com/defileo/status/2042241063612502162
+Stats: 182 replies · 1,006 reposts · 9,086 likes · 6.69M views
+
+---
+
+Claude + Obsidian should be illegal.
+
+Let me tell you what my setup does before I explain how to build it.
+
+Every morning I open my laptop. Before I type a single word, Claude already knows who I am, what I'm working on, every crypto tool I use, every open task, every article I've ever written, and every idea I've ever captured.
+
+That's not a chatbot, that's a second brain that never sleeps, never forgets, and gets smarter every single day you use it.
+
+Here's exactly how it works, and how you can build it yourself this week. It will take you a few hours to save you THOUSANDS of hours.
+
+## How to set up your second brain in 5 minutes
+
+1. Download Obsidian: https://obsidian.md/
+2. Create your vault (mine is "Leo's workspace")
+3. Download Claude Code: https://claude.com/product/claude-code
+4. Go to Claude Code and choose your vault
+5. Drop in Karpathy's prompt (split into two parts; copy/paste together)
+
+## Karpathy's LLM Wiki prompt (the schema)
+
+A pattern for building personal knowledge bases using LLMs.
+
+This is an idea file, designed to be copy-pasted to your own LLM Agent (Claude Code, OpenAI Codex, OpenCode, etc.). Its goal is to communicate the high-level idea; your agent builds the specifics with you.
+
+### The core idea
+
+Most people's experience with LLMs and documents looks like RAG: upload files, LLM retrieves relevant chunks at query time, generates an answer. The LLM rediscovers knowledge from scratch on every query. NotebookLM, ChatGPT file uploads, most RAG systems work this way.
+
+The idea here is different. Instead of just retrieving from raw documents at query time, the LLM **incrementally builds and maintains a persistent wiki** — a structured, interlinked collection of markdown files that sits between you and the raw sources.
+
+When you add a new source, the LLM doesn't just index it. It reads it, extracts key information, integrates it into the existing wiki — updating entity pages, revising topic summaries, noting where new data contradicts old claims. The knowledge is compiled once and kept current, not re-derived on every query.
+
+**The wiki is a persistent, compounding artifact.** Cross-references are already there. Contradictions have been flagged. The synthesis already reflects everything you've read.
+
+You never (or rarely) write the wiki yourself — the LLM writes and maintains all of it. You curate sources, explore, and ask good questions. The LLM does the summarizing, cross-referencing, filing, and bookkeeping.
+
+In practice: LLM agent on one side, Obsidian on the other. LLM makes edits based on conversation; you browse the results in real time. **Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase.**
+
+### Use cases
+- **Personal**: tracking goals, health, psychology, self-improvement
+- **Research**: deep-dive on a topic over weeks/months
+- **Reading a book**: filing each chapter, building character/theme/plot pages (think Tolkien Gateway scale)
+- **Business/team**: internal wiki maintained by LLMs from Slack, transcripts, docs
+- **Competitive analysis, due diligence, trip planning, course notes, hobby deep-dives**
+
+### Architecture (3 layers)
+
+1. **Raw sources** — curated source documents (articles, papers, images, data). Immutable. LLM reads, never modifies. Source of truth.
+2. **The wiki** — directory of LLM-generated markdown. Summaries, entity pages, concept pages, comparisons, synthesis. LLM owns this entirely.
+3. **The schema** — config doc (CLAUDE.md for Claude Code, AGENTS.md for Codex) that tells the LLM how the wiki is structured, conventions, workflows. The key configuration file. Co-evolves with you.
+
+### Operations
+
+**Ingest.** Drop a source in raw/, tell the LLM to process. LLM reads, discusses key takeaways, writes summary page, updates index, updates relevant entity/concept pages, appends to log. A single source might touch 10–15 wiki pages.
+
+**Query.** Ask questions against the wiki. LLM searches relevant pages, reads them, synthesizes an answer with citations. Output formats: markdown, comparison tables, slide decks (Marp), charts (matplotlib), canvases. **Good answers get filed back into the wiki as new pages** — explorations compound just like ingested sources.
+
+**Lint.** Periodically health-check: contradictions, stale claims, orphan pages, missing pages, missing cross-references, data gaps. LLM is good at suggesting new questions and sources.
+
+### Indexing & logging
+
+- **index.md** — content-oriented catalog. Each page listed with link, one-line summary, optional metadata. Organized by category. LLM updates on every ingest. Works at moderate scale (~100 sources, hundreds of pages) without embedding-based RAG.
+- **log.md** — chronological, append-only. Ingests, queries, lint passes. Tip: consistent prefix like `## [2026-04-02] ingest | Article Title` makes it parseable with `grep "^## \[" log.md | tail -5`.
+
+### Optional: CLI tools
+
+A search engine over the wiki — at small scale, the index file is enough. As it grows: **qmd** (https://github.com/tobi/qmd), local search for markdown with hybrid BM25/vector search and LLM re-ranking, all on-device. Has CLI and MCP server.
+
+### Tips
+- **Obsidian Web Clipper** — browser extension, web articles → markdown
+- **Download images locally** — Settings → Files and links → Attachment folder path → `raw/assets/`. Hotkey "Download attachments for current file" (Ctrl+Shift+D)
+- **Graph view** — best way to see wiki shape
+- **Marp** — markdown slide decks, Obsidian plugin
+- **Dataview** — queries over page frontmatter
+- Wiki is just a git repo of markdown — version history, branching, collaboration free
+
+### Why this works
+
+The tedious part of maintaining a knowledge base is not reading or thinking — it's the bookkeeping. Updating cross-references, keeping summaries current, noting contradictions, maintaining consistency. Humans abandon wikis because maintenance grows faster than value. LLMs don't get bored, don't forget, can touch 15 files in one pass. Maintenance cost ≈ zero.
+
+Related to Vannevar Bush's Memex (1945) — personal curated knowledge store with associative trails. Bush couldn't solve who does the maintenance. The LLM handles that.
+
+## Day-to-day operations (Claude Code commands)
+
+**Ingest:**
+```
+claude -p "I just added an article to /raw-sources.
+Read it, extract the key ideas, write a summary page to /wiki/summaries/,
+update index.md with a link and one-line description, and update any
+existing concept pages that this article connects to.
+Show me every file you touched." --allowedTools Bash,Write,Read
+```
+
+**Lint (weekly):**
+```
+claude -p "Read every file in /wiki/. Find: contradictions between pages,
+orphan pages with no inbound links, concepts mentioned repeatedly but
+with no dedicated page, and claims that seem outdated based on newer files
+in /raw-sources/. Write a health report to /wiki/lint-report.md with
+specific fixes." --allowedTools Bash,Write,Read
+```
+
+**Morning briefing (set once, runs forever):**
+```
+claude -p "Write a Python script called morning_digest.py that:
+1) reads Memory.md and surfaces any open actions due today
+2) reads any new files added to /raw-sources in the last 24 hours
+3) prints a clean briefing to the terminal.
+Then schedule it as a cron job every morning at 7:30am." --allowedTools Bash,Write
+```
+
+**Process a call transcript:**
+```
+claude -p "Read the transcript in /transcripts/call-today.md.
+Extract every decision made, every action item with owner and deadline,
+and a 3-bullet summary. Add actions to /Action-Tracker.md, log decisions
+to /Decision-Log.md, and create a client note in /clients/ linking back
+to this transcript." --allowedTools Bash,Write,Read
+```
+
+## What goes in a second brain
+
+Everything you consumed in the last year that disappeared:
+- Books finished and forgotten
+- Podcasts that changed your thinking
+- Articles saved at 11pm, never reopened
+- YouTube rabbit holes
+- Kindle highlights
+- Research before big decisions
+- Old project notes
+- Lessons from things that went wrong
+
+No existing material? Open Claude chat, talk for 20 minutes — your work, goals, what you're building. Save as Memory file. Enough to make the first session feel like Claude knows you.
+
+## Why almost nobody has this
+
+Most second-brain projects die the same death. Start organized. Maintenance piles up — tags, cross-references, reorganizing. Extra work on top of full workload → skip it → system degrades → back to scattered notes. Six months later, rebuild, repeat.
+
+Claude breaks the cycle: maintenance is a command. Reorganizing the vault is a prompt. Migrating from Notion is one command.
+
+Human's job: curate sources, ask good questions, think about what it means.
+Claude's job: everything else.
+
+Build this once → use it forever → gets better every day.
+
+That's why it should be illegal.
+
+— Leo

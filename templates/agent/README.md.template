@@ -1,0 +1,264 @@
+# {{AGENT_NAME}} — Hermes Telegram librarian for {{VAULT_NAME}}
+
+> **Repo on GitHub:** `{{GITHUB_USER}}/{{AGENT_REPO}}` (private)
+> **Mounted at:** `{{LOCAL_ROOT}}/agents/{{AGENT_NAME}}/`
+> **Telegram bot:** {{TELEGRAM_BOT_HANDLE}}
+> **Serves vault:** `{{VAULT_NAME}}` (`{{LOCAL_ROOT}}/{{VAULT_NAME}}/`)
+
+---
+
+## TL;DR
+
+This repo IS a [Hermes](https://hermes-agent.nousresearch.com/) agent — a Telegram-native librarian bot bound to exactly one Obsidian vault. Messages arrive on Telegram, a deterministic Python hook writes them to the vault's `raw/inbox/` before any LLM runs, then the agent replies conversationally via ChatGPT. Downstream wiki classification is done separately by Claude Code in `{{OPS_REPO}}`, on a schedule.
+
+The repo is also `HERMES_HOME` — Hermes runtime files (sessions, memories, gateway state, SQLite) live here but are gitignored. What's tracked is the agent's PERSONALITY (`SOUL.md`), CONFIG (`config.yaml`), HOOKS, SKILLS, and start script.
+
+**One sentence:** *Telegram message in -> Python hook deterministically writes to `{{VAULT_NAME}}/raw/inbox/` -> ChatGPT replies -> Claude (in `{{OPS_REPO}}`) classifies on a schedule.*
+
+---
+
+## Where this repo sits
+
+One agent per vault, plus a shared ops repo:
+
+```
+{{LOCAL_ROOT}}/
+  agents/
+    {{AGENT_NAME}}/          <- YOU ARE HERE: librarian for {{VAULT_NAME}}
+    <sibling-agent>/         <- same architecture, different vault
+  {{VAULT_NAME}}/            <- the vault this librarian writes to
+  <sibling-vault>/           <- never touched by this agent (except read-only via query-vault)
+  {{OPS_REPO}}/              <- launchd plists, backup, wiki-ingest scripts
+```
+
+The agent writes to exactly one vault. Cross-vault access, where granted, is READ-ONLY through the `query-vault` skill.
+
+---
+
+## Why this librarian exists
+
+1. **Capture has to be one-tap-fast.** Telegram is always open; Obsidian-on-phone is friction. Voice memos work because local Whisper transcribes them cleanly.
+2. **LLMs silently drop file writes.** Letting an LLM decide whether and where to save a message failed in practice — ~5-15% of messages went missing or got mislabeled. The fix is a deterministic Python hook that writes before the LLM runs. The LLM's only job is to reply.
+3. **Vault voice contamination.** One librarian per vault means zero cross-bleed between domains. Boundary is enforced at three layers (see below).
+
+---
+
+## Folder map
+
+```
+{{AGENT_NAME}}/                        <- HERMES_HOME (the dir IS the home)
+├── README.md                          <- you are here
+├── SOUL.md                            <- personality + behavioral contract
+├── USER.md                            <- profile of the owner from this bot's lens (optional)
+├── MEMORY.md                          <- working memory index (optional)
+├── config.yaml                        <- Hermes config: model routing, skills, hooks, filesystem boundary
+├── .env                               <- SECRETS (gitignored): TELEGRAM_BOT_TOKEN, allowed users, OpenAI key
+├── .env.example                       <- template (committed) — copy to .env on setup
+├── .gitignore
+├── auth.json                          <- SECRETS (gitignored): OpenAI Codex OAuth, GitHub Copilot PAT
+├── auth.json.example                  <- template (committed) — zero Anthropic references
+├── hooks/
+│   └── auto-save-inbox/
+│       ├── HOOK.yaml                  <- registers the hook on agent:start
+│       └── handler.py                 <- deterministic write to raw/inbox/ + assets + drive-ingest spawn
+├── skills/
+│   └── query-vault/
+│       └── SKILL.md                   <- read-only cross-vault query skill
+├── scripts/
+│   └── start.sh                       <- launchd entry point: sets HERMES_HOME, loads .env, starts gateway
+├── platforms/                         <- runtime state (gitignored)
+├── sessions/                          <- runtime state (gitignored): per-conversation JSONL
+├── memories/                          <- runtime state (gitignored): Hermes long-term memory
+├── logs/                              <- runtime state (gitignored)
+├── cache/                             <- runtime state (gitignored)
+├── sandboxes/                         <- runtime state (gitignored)
+├── state.db                           <- runtime state (gitignored): SQLite session store
+├── gateway.pid                        <- runtime state (gitignored)
+└── gateway_state.json                 <- runtime state (gitignored)
+```
+
+---
+
+## End-to-end workflow
+
+### Inbound (Telegram -> vault)
+
+1. Owner sends a message to `{{TELEGRAM_BOT_HANDLE}}`. Text, voice, image, URL, or Drive folder.
+2. Hermes routes the message into the agent. The `agent:start` event fires.
+3. **`hooks/auto-save-inbox/handler.py` runs (deterministic, no LLM):**
+   - Reads the full message from `sessions/{session_id}.jsonl` (not the truncated 500-char ctx).
+   - Writes `{{LOCAL_ROOT}}/{{VAULT_NAME}}/raw/inbox/{compact_ts}-{user_id}-{hash}.md` with YAML frontmatter (source, sender, timestamp, chat_id, assets).
+   - Copies any recent `~/.hermes/audio_cache/*.ogg` or `image_cache/*.jpg` to `raw/assets/` and links them from the inbox file.
+   - If a Google Drive folder URL is detected, spawns `{{OPS_REPO}}/drive-ingest.sh` in a detached subprocess.
+   - Uses `os.replace` (atomic rename) so partial writes are impossible.
+   - Returns control to Hermes. The file is already on disk.
+4. Hermes hands the message + tools to the LLM (ChatGPT via OpenAI Codex OAuth). The LLM composes a reply.
+5. Reply goes back to Telegram.
+
+### Downstream (Claude classifies, separately)
+
+This librarian's job ENDS at writing to `raw/inbox/`. Deep classification — entity pages, decisions, atom notes, CRM updates — is done by Claude Code from `{{OPS_REPO}}/run-ingest.sh`, fired by launchd on a schedule. Why split:
+
+- Hermes-class LLMs are good at conversation, mediocre at structured extraction.
+- Claude with the vault's `CLAUDE.md` in context is good at structured extraction.
+- This split also keeps Anthropic OAuth usage TOS-compliant: Claude is invoked via `claude -p` from `{{OPS_REPO}}`, never from inside a third-party tool like Hermes.
+
+---
+
+## Required assets (NOT in this repo)
+
+### Secrets (keep in a password manager)
+
+- `.env` with:
+  - `TELEGRAM_BOT_TOKEN` (from @BotFather)
+  - `TELEGRAM_ALLOWED_USERS` (owner's Telegram user ID — only this user can talk to the bot)
+  - `OPENAI_API_KEY` (for Whisper voice transcription)
+  - `VAULT_PATH={{LOCAL_ROOT}}/{{VAULT_NAME}}`
+  - `HERMES_HOME_NAME={{AGENT_NAME}}`
+- `auth.json` with:
+  - OpenAI Codex OAuth credentials (`access_token`, `refresh_token`)
+  - GitHub Copilot PAT (auto-fallback)
+
+Both files are `chmod 600` and gitignored.
+
+### External services
+
+- Telegram bot from @BotFather (get token, restrict to owner's user ID).
+- OpenAI Codex OAuth (device-code flow via `hermes auth login openai-codex`) — covered by ChatGPT Pro subscription.
+- GitHub Copilot PAT — optional fallback; needed only if the Codex quota is tight.
+- macOS launchd (keeps the bot alive; plist lives in `{{OPS_REPO}}`).
+- The `{{VAULT_NAME}}` repo at `{{LOCAL_ROOT}}/{{VAULT_NAME}}/` (write target).
+- `{{OPS_REPO}}/drive-ingest.sh` (called for Drive URLs, optional).
+
+### Hermes runtime
+
+Installed globally at `~/.hermes/hermes-agent/`. This repo sets `HERMES_HOME` to its own directory so all per-agent state is isolated.
+
+---
+
+## Under the hood
+
+### The auto-save hook is the critical piece
+
+Without this hook, saving becomes "ask the LLM nicely to write a file" — which fails at measurable rates. With the hook:
+
+- The complete message body is read from the session JSONL (not the truncated ctx).
+- `pathlib` + atomic `os.replace` means no partial writes.
+- Drive URL detection and subprocess spawn happen in the same deterministic layer.
+- If the LLM crashes mid-reply, the file is already saved.
+
+Source: [`hooks/auto-save-inbox/handler.py`](./hooks/auto-save-inbox/handler.py). Trigger config: [`hooks/auto-save-inbox/HOOK.yaml`](./hooks/auto-save-inbox/HOOK.yaml).
+
+### Model routing
+
+`config.yaml` sets:
+
+- `model.default: gpt-5.4-mini` via `provider: openai-codex` (covered by ChatGPT Pro).
+- `smart_model_routing.cheap_model: gpt-5.4-nano` for trivial responses.
+- `session_reset.telegram.idle_minutes: 60` — after an hour idle, next message starts a fresh session.
+- `fallback_providers: [copilot]` — GitHub Copilot PAT auto-fallback.
+- NO `anthropic` anywhere. Claude is reserved for the official `claude -p` CLI, called only from `{{OPS_REPO}}` scripts.
+
+### Why `HERMES_HOME` IS the repo dir
+
+Flat > nested. One repo per librarian, one HERMES_HOME per librarian, no path math. launchd plist is a one-liner: `WorkingDirectory = {{LOCAL_ROOT}}/agents/{{AGENT_NAME}}`, `EnvironmentVariables.HERMES_HOME = (same)`.
+
+---
+
+## Boundary (READ vs WRITE)
+
+| Path | Access |
+|---|---|
+| `{{VAULT_NAME}}/raw/inbox/`, `raw/assets/`, `wiki/outputs/` | READ + WRITE |
+| `{{VAULT_NAME}}/wiki/` (rest) | READ |
+| Sibling vault `wiki/` (only if listed in `config.yaml` `read_allowed`) | **READ-ONLY** |
+| Any vault's `raw/` (other than this agent's own inbox), `.obsidian/`, `.git/`, `.env`, `auth.json`, `state.db`, `cache/`, runtime state | NO access |
+| Sibling vault — any WRITE | NO — redirect to that vault's dedicated bot |
+
+**Three layers of defense:**
+
+1. `SOUL.md` + `query-vault` skill — explicit READ-ONLY instructions for any sibling vaults; redirects on cross-vault capture attempts.
+2. `.env` `TELEGRAM_ALLOWED_USERS` — bot only responds to the owner's Telegram user ID.
+3. `hooks/auto-save-inbox/handler.py` hard-codes `{{VAULT_NAME}}/raw/inbox/` as the only deterministic write target.
+
+---
+
+## Backup and disaster recovery
+
+This repo (librarian config, hooks, skills, SOUL, scripts) is committed and pushed on the schedule defined in `{{OPS_REPO}}/scripts/daily-backup.sh`. Runtime state (sessions, memories, state.db, gateway state, caches) is gitignored — per-machine, regenerated each session.
+
+**What you LOSE on restore (acceptable):**
+- Conversation history (`sessions/*.jsonl`).
+- Long-term memories (`memories/`).
+- Pairing state (sometimes) — re-pair via `hermes pairing approve`.
+
+**What you KEEP (everything that matters):**
+- SOUL.md, USER.md, MEMORY.md, config.yaml.
+- All hooks (especially `auto-save-inbox`).
+- All skills.
+- Start script.
+
+Full DR runbook: `{{LOCAL_ROOT}}/{{OPS_REPO}}/docs/RESTORE.md`.
+
+---
+
+## Setup (one-time, fresh Mac)
+
+```bash
+cd {{LOCAL_ROOT}}/agents/{{AGENT_NAME}}
+
+# 1. Restore secrets from your password manager
+cp .env.example .env          # then fill in the values
+cp auth.json.example auth.json # then log in with: hermes auth login openai-codex
+chmod 600 .env auth.json
+
+# 2. Verify Hermes is installed
+hermes --version              # v0.10+
+
+# 3. Test boot (Ctrl-C to stop)
+HERMES_HOME=$(pwd) ./scripts/start.sh
+
+# 4. Register with launchd (or skip if {{OPS_REPO}} already did this)
+ln -sf {{LOCAL_ROOT}}/{{OPS_REPO}}/launchd/com.alexmind.librarian.{{AGENT_NAME}}.plist \
+       ~/Library/LaunchAgents/
+launchctl load -w ~/Library/LaunchAgents/com.alexmind.librarian.{{AGENT_NAME}}.plist
+
+# 5. Smoke test — message the bot on Telegram, expect a reply within 30s
+```
+
+---
+
+## Logs
+
+```bash
+tail -f {{LOCAL_ROOT}}/{{OPS_REPO}}/logs/librarian-{{AGENT_NAME}}.out.log
+tail -f {{LOCAL_ROOT}}/{{OPS_REPO}}/logs/librarian-{{AGENT_NAME}}.err.log
+```
+
+launchd restarts the gateway automatically (`KeepAlive=true`) on crash.
+
+---
+
+## If you're an AI agent reading this repo, do this in order
+
+1. **Read [`SOUL.md`](./SOUL.md).** That is the agent's behavioral contract — voice, boundaries, legal rules.
+2. **Read [`config.yaml`](./config.yaml).** Model routing, hooks, skills, filesystem boundary.
+3. **Read [`hooks/auto-save-inbox/handler.py`](./hooks/auto-save-inbox/handler.py).** This is the deterministic critical path — understand it fully before changing anything.
+4. **Read [`skills/query-vault/SKILL.md`](./skills/query-vault/SKILL.md).** The only built-in skill; defines cross-vault read access rules.
+5. **NEVER commit `.env`, `auth.json`, `sessions/`, `memories/`, `state.db`, `gateway.pid`, `gateway_state.json`, or anything in `platforms/`, `cache/`, `sandboxes/`.** The `.gitignore` covers it — double-check.
+6. **NEVER add `anthropic` to `config.yaml` as a provider, model, or fallback.** Anthropic's TOS forbids using Claude subscription tokens inside third-party tools. Claude is reserved for `claude -p` invoked from `{{OPS_REPO}}` scripts (keychain OAuth). This is a legal requirement, not a preference.
+7. **NEVER let the LLM be the first thing to touch an inbound message.** The `auto-save-inbox` hook must run first. If you disable it or move the save into a skill, silent drops return at ~5-15% rate.
+8. **NEVER write outside `{{VAULT_NAME}}/raw/inbox/`, `raw/assets/`, or `wiki/outputs/`.** Not even to a sibling vault. Redirect instead.
+9. **NEVER delete files, force-push, `--hard` reset, or `--amend`.** If cleanup is needed, flag the owner and let them decide.
+10. **If you change the hook, verify:** (a) the full message body is captured (not truncated), (b) Drive URL detection still spawns `drive-ingest.sh` detached, (c) attachments still copy to `raw/assets/`, (d) the target file is still written via atomic `os.replace`.
+11. **Sibling librarians follow the same architecture.** Cross-reference for consistency.
+
+---
+
+## Reference
+
+- Hermes Agent docs: https://hermes-agent.nousresearch.com/docs/
+- Hermes GitHub: https://github.com/NousResearch/hermes-agent
+- Vault this librarian serves: `{{LOCAL_ROOT}}/{{VAULT_NAME}}/`
+- Orchestration + backup: `{{LOCAL_ROOT}}/{{OPS_REPO}}/`
+- Disaster-recovery runbook: `{{LOCAL_ROOT}}/{{OPS_REPO}}/docs/RESTORE.md`

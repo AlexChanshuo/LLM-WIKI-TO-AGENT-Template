@@ -1,0 +1,4 @@
+name: auto-save-inbox
+description: Deterministically save every inbound Telegram message to this librarian's vault raw/inbox/ before the agent inference begins. Reads the latest user message from the session JSONL (full untruncated text + any pre-processed media output), copies any recent audio/image cache files to vault assets, writes a markdown file with proper frontmatter. Idempotent. Errors are logged but never block the agent.
+events:
+  - agent:start
