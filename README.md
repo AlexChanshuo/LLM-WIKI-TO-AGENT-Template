@@ -2,6 +2,30 @@
 
 > A reproducible blueprint for building one private Obsidian knowledge base, one Telegram-native capture agent, and one paranoid GitHub backup — end to end, on a single Mac.
 
+> **Provided by Alex Ma (馬驊)** — CC10 member, founder of [PainPoint Tech (痛點科技)](https://www.painpoint-ai.com).
+> Contact: [alexma@painpoint-ai.com](mailto:alexma@painpoint-ai.com) · Web: [www.painpoint-ai.com](https://www.painpoint-ai.com)
+
+---
+
+## 中文簡介 (zh-TW)
+
+這是一份 **meta-template**:讓你在一台 Mac 上,從零蓋出「Obsidian 知識庫 + Telegram 對話 Agent + GitHub 偏執備份」的完整堆疊。所有架構決策都來自 Andrej Karpathy 2026 年 4 月 3 日的 **「LLM Wiki」** gist。
+
+**做法很簡單:**
+1. `git clone` 這個 repo 到你的本機
+2. 在這個資料夾打開 Claude Code(或 OpenAI Codex,本 template 兩邊都支援)
+3. 跟它說:**「walk me through AGENT.md」**
+4. 回答它問的 6 個問題,剩下 45–90 分鐘它會自己跑完
+
+**蓋出來的是什麼?** 一個你自己擁有、會自己更新、可以用 Telegram 對話的私人知識庫。新訊息 / 文章 / 語音 / 照片進來 → Python hook 確定性存檔 → Claude 自動分類、抽重點、跨頁更新 wiki → 每天 03:33 偏執備份 → 你週末問它「上週重點?」秒答。
+
+**詳細中文文件:**
+- 📘 [`docs/zh-TW-overview.md`](./docs/zh-TW-overview.md) — 繁體中文完整總覽 (架構、四個操作、安全決策、常見問題)
+- 🤖 [`AGENT.zh-TW.md`](./AGENT.zh-TW.md) — AGENT.md 中文導讀 (Claude / Codex 在執行什麼)
+- 🎁 配套公開導讀: [`AlexChanshuo/Gift-for-Event`](https://github.com/AlexChanshuo/Gift-for-Event) — 馬驊 AI 知識庫分享會的全中文實戰指南
+
+**作者:** 馬驊 (Alex Ma),CC10 成員、[痛點科技](https://www.painpoint-ai.com) 創辦人。聯絡: [alexma@painpoint-ai.com](mailto:alexma@painpoint-ai.com)。
+
 ---
 
 ## TL;DR
