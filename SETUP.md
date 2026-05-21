@@ -62,6 +62,7 @@ Write these down before you start Claude Code — it will ask for all of them.
 | `{{TELEGRAM_BOT_HANDLE}}` | `@handle` from BotFather | you'll create this in step 5 |
 | `{{DOMAIN_DESCRIPTION}}` | One sentence on the vault's purpose | "Alice's product-research and interview notes" |
 | `{{LAUNCHD_PREFIX}}` | launchd dot-prefix | `com.<your-username>.{{PROJECT_NAME}}` |
+| `{{HOME_USER}}` | macOS short username (derived from `whoami`; not asked) | `alice` |
 
 Keep this table open. You will reference it repeatedly.
 

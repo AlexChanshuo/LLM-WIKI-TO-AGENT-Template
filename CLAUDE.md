@@ -44,6 +44,7 @@ All template files contain `{{UPPER_SNAKE}}` tokens. Substitute once, determinis
 | `{{DOMAIN_DESCRIPTION}}` | One sentence on what the vault is for | `Alice's product-research notes` |
 | `{{LAUNCHD_PREFIX}}` | launchd job prefix (dot-separated) | `com.alice-chen.alice-brain` |
 | `{{LOCAL_ROOT}}` | Absolute path to project root on disk | `/Users/alice/Documents/alice-brain` |
+| `{{HOME_USER}}` | **Derived** — macOS short username (output of `whoami`). Used inside plist `PATH` and shell scripts for `~/.local/bin` resolution. | `alice` |
 
 After substitution, run `grep -r '{{' {{LOCAL_ROOT}}/` — there should be zero matches outside intentional `{{ }}` in template-literal code.
 

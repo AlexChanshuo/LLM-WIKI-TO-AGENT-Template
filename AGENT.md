@@ -171,6 +171,7 @@ Then derive:
 - `{{AGENT_REPO}}` = `{{AGENT_NAME}}`
 - `{{OPS_REPO}}` = `{{PROJECT_NAME}}-ops`
 - `{{LAUNCHD_PREFIX}}` = `com.{{GITHUB_USER}}.{{PROJECT_NAME}}` (lowercased, dots allowed)
+- `{{HOME_USER}}` = output of `whoami` on the macOS box where the template is being run (used in plist `PATH` and shell scripts for `~/.local/bin` resolution).
 
 Echo all resolved values back and ask for one `yes` before proceeding.
 
