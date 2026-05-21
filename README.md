@@ -28,6 +28,44 @@
 
 ---
 
+## Think of it as a private library
+
+Easiest way to grok the architecture: **stop thinking "knowledge base" and start thinking "library."** Every piece has a real-world equivalent.
+
+> You walk past your private library every morning. A **Librarian** (a Telegram bot named `{{AGENT_NAME}}`) stands at the front desk. You toss a voice memo, an article, a half-formed thought into the drop box — they smile, confirm receipt, and put your contribution on the **Acquisitions cart**. Overnight, while you sleep, the library runs its cataloging shift: every item on the cart gets read, cross-referenced, filed onto the right shelf in the **Stacks**, and the **master card catalog** is updated. The original donation goes into a sealed archive (still on file, never edited). The next morning you wander in, ask the Librarian *"what was the gist of last week?"*, and they walk you straight to the right shelf — every claim cited with the catalog card it came from. Once a week, the library does a quiet **health check**: orphan books, stale guides, gaps where the collection is thin. The Librarian even hands you a list of new questions worth asking and new books worth buying. The library never has overdue paperwork because the only employee never gets bored.
+
+That paragraph IS the whole system. Below is the literal mapping:
+
+| In the library | In this repo | What it does |
+|---|---|---|
+| The **patron / scholar** (you) | The human | Donates material, asks questions, sets direction |
+| The **Librarian** | `agents/{{AGENT_NAME}}/` — Hermes Telegram bot | Greets you, confirms receipt, never re-files anything itself |
+| The **front-desk drop box** | The Telegram chat | Where donations land |
+| The **Acquisitions cart** | `{{VAULT_NAME}}/raw/inbox/` | Where new donations wait, untouched, before cataloging |
+| The **sealed archive** | `{{VAULT_NAME}}/raw/inbox/.processed/` | Originals, permanently preserved, never edited |
+| The **Stacks** (catalogued shelves) | `{{VAULT_NAME}}/wiki/` | Where the structured knowledge lives — entities, concepts, syntheses |
+| Each **catalog card** | A single `.md` file in `wiki/entities/`, `wiki/concepts/`, etc. | One canonical page per real-world thing |
+| The **master card catalog** | `wiki/index.md` | Master index — read first when answering anything |
+| The **librarian's daily journal** | `wiki/log.md` | Append-only timeline of every cataloging shift |
+| The **librarian's training manual** | `CLAUDE.md` (and its `AGENTS.md` sibling for Codex) | The schema — filing conventions, NEVER rules, the librarian's job description |
+| The **after-hours maintenance crew** | `_ops/` — launchd-scheduled shell scripts | Cataloging shifts, weekly walk-throughs, nightly off-site backup |
+| **Off-site fireproof backup** | `_ops/scripts/daily-backup.sh` → private GitHub repos | Paranoid mirror, runs at 03:33 daily |
+
+### The four library workflows (a.k.a. the four ops)
+
+| Library workflow | In this repo | What happens |
+|---|---|---|
+| **Acquisitions shift** | `ingest` | An item from the cart gets read, classified, summarised, cross-referenced. New catalog cards created or updated. Item moved into the sealed archive. Daily journal updated. |
+| **Stocktaking** | `compile` | After a flurry of manual edits in Obsidian, the master catalog regenerates itself from the current shelves. Touches only the index — never the books. |
+| **Reference desk** | `query` | Patron asks a question. Librarian reads the master catalog, pulls the relevant books, synthesises an answer with every claim citing a catalog card, picks the right format (a markdown note, a comparison table, a Marp slide deck, a chart, a canvas), and **files the answer as a new catalog card** so future questions can cite it. |
+| **Weekly health check** | `lint` | Walk the shelves. Flag orphan books, stale guides, broken cross-references, frontmatter mistakes, decisions overdue for review. **Also proactive:** the librarian suggests web searches that would close known gaps, open questions worth investigating, and recurring author names that should have their own catalog card. |
+
+The whole point of using an LLM for this: the bookkeeping that makes humans abandon personal wikis (cross-references, deduping, summary upkeep, contradiction flagging) is exactly what an LLM doesn't mind doing forever. **Your maintenance cost approaches zero; the library compounds.**
+
+> 中文版的圖書館比喻在 [`docs/zh-TW-overview.md`](./docs/zh-TW-overview.md) 「把它想成一座私人圖書館」一節。
+
+---
+
 ## TL;DR
 
 This template lets a human + Claude Code instance bootstrap, in a single session:

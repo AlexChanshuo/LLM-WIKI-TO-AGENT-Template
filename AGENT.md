@@ -34,6 +34,8 @@ If a decision is reversible and low-cost, just make it and tell the human. If it
 
 ## Your mental model
 
+Anchoring metaphor: **a private library.** The vault is the building; `wiki/` is the catalogued stacks; `raw/inbox/` is the acquisitions cart; the Hermes agent is the front-desk librarian; `_ops/` is the after-hours maintenance crew; `CLAUDE.md` is the librarian's training manual. See README §"Think of it as a private library" for the full mapping. Every technical decision below maps cleanly back to a real library role — if you find yourself inventing a behavior that has no library analogue, you're probably about to add unwanted scope.
+
 Three ideas, in order:
 
 ### 1. Karpathy's three-layer pattern
