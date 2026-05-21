@@ -32,7 +32,7 @@ The repo is also `HERMES_HOME` -- Hermes runtime files (sessions, memories, gate
 | `{{VAULT_NAME}}` | Vault this librarian writes to | **Yes** -- write-only to `raw/inbox/` |
 | `<sister-vault-1>` | Sister domain vault | No -- sister librarian handles it |
 | `<sister-vault-2>` | Sister domain vault | No -- sister librarian handles it |
-| `{{OPS_REPO}}` | launchd plists keep this librarian alive; runs Claude on the vault | **Yes** -- `com.alexmind.librarian.{{AGENT_NAME}}.plist` |
+| `{{OPS_REPO}}` | launchd plists keep this librarian alive; runs Claude on the vault | **Yes** -- `com.{{LAUNCHD_PREFIX}}.librarian.{{AGENT_NAME}}.plist` |
 
 ---
 
@@ -190,9 +190,9 @@ hermes --version
 HERMES_HOME=$(pwd) ./scripts/start.sh
 
 # 4. Register with launchd
-ln -sf {{LOCAL_ROOT}}/{{OPS_REPO}}/launchd/com.alexmind.librarian.{{AGENT_NAME}}.plist \
+ln -sf {{LOCAL_ROOT}}/{{OPS_REPO}}/launchd/com.{{LAUNCHD_PREFIX}}.librarian.{{AGENT_NAME}}.plist \
        ~/Library/LaunchAgents/
-launchctl load -w ~/Library/LaunchAgents/com.alexmind.librarian.{{AGENT_NAME}}.plist
+launchctl load -w ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.librarian.{{AGENT_NAME}}.plist
 
 # 5. Smoke test -- message the bot on Telegram, expect a reply within 30s
 ```

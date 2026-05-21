@@ -183,6 +183,34 @@ Launch Obsidian → `Open folder as vault` → pick `{{LOCAL_ROOT}}`. Turn off R
 
 ---
 
+## Search at scale (optional, `qmd`)
+
+The `index.md` + read-relevant-pages pattern works well at moderate scale (~100 sources, ~hundreds of pages). Beyond that, the index gets noisy and the agent burns context reading pages it didn't need.
+
+Karpathy's gist recommends [`qmd`](https://github.com/tobi/qmd) (Tobi Lütke) as the lightweight escalation: a local search engine for markdown files with hybrid BM25 + vector search and LLM re-ranking — all on-device. It exposes both:
+
+- a **CLI** the LLM can shell out to (`qmd search "..." --top 5`)
+- an **MCP server** Claude Code / Codex can use as a native tool
+
+Install it once your wiki crosses the hundreds-of-pages mark — earlier is over-engineering. Add the MCP server to the relevant `.claude/mcp.json` (Claude Code) or Codex equivalent, and tell `CLAUDE.md` to prefer `qmd` over reading every index entry when the vault is large.
+
+Until then, do not optimize. The index pattern carries you further than you'd think.
+
+---
+
+## AGENTS.md — model-agnostic schema entry point
+
+The vault ships **two** schema-pointer files at root:
+
+- `CLAUDE.md` — Claude Code auto-loads this at session start.
+- `AGENTS.md` — OpenAI Codex auto-loads this at session start. The shipped template is a one-page stub that points right back at `CLAUDE.md` so the schema lives in exactly one place.
+
+If you ever run multiple agents (Claude on Monday, Codex on Tuesday), keep them in lock-step by editing `CLAUDE.md` and leaving `AGENTS.md` alone. If the two ever diverge, it's a bug — converge on `CLAUDE.md`.
+
+Per Karpathy's gist (Apr 3, 2026): "a document (e.g. CLAUDE.md for Claude Code or AGENTS.md for Codex) that tells the LLM how the wiki is structured."
+
+---
+
 ## Obsidian Web Clipper
 
 Install [Obsidian Web Clipper](https://obsidian.md/clipper). Add one named template per vault:

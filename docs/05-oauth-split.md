@@ -143,7 +143,7 @@ Zero matches in these two file types = compliant.
 
 You do not — but if you think you do, here are the legitimate escape hatches:
 
-1. **Spawn `claude -p` as a subprocess** from the agent's hook or skill. The credentials stay in the keychain; the child process is a first-party Claude call; the agent only consumes the stdout. This is how `drive-ingest.sh` works in the AlexMind reference implementation.
+1. **Spawn `claude -p` as a subprocess** from the agent's hook or skill. The credentials stay in the keychain; the child process is a first-party Claude call; the agent only consumes the stdout. This is the pattern the reference `drive-ingest.sh` uses.
 2. **Shell out to an ops script** that itself calls `claude -p`. Same pattern, one more hop.
 3. **Use Anthropic's API key (paid, not the OAuth subscription)** — a separate billing mechanism that is sanctioned for third-party use. Different TOS path.
 

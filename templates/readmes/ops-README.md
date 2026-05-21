@@ -68,10 +68,10 @@ Three concrete problems it solves:
 |-- scripts/
 |   +-- daily-backup.sh                <- safe nightly backup of ALL repos
 |-- launchd/
-|   |-- com.alexmind.librarian.<name>.plist     <- one per librarian (KeepAlive)
-|   |-- com.alexmind.wiki-watcher.<vault>.plist <- one per vault (2x/day)
-|   |-- com.alexmind.wiki-lint.<vault>.plist    <- one per vault (weekly)
-|   +-- com.alexmind.daily-backup.plist         <- nightly backup
+|   |-- com.{{LAUNCHD_PREFIX}}.librarian.<name>.plist     <- one per librarian (KeepAlive)
+|   |-- com.{{LAUNCHD_PREFIX}}.wiki-watcher.<vault>.plist <- one per vault (2x/day)
+|   |-- com.{{LAUNCHD_PREFIX}}.wiki-lint.<vault>.plist    <- one per vault (weekly)
+|   +-- com.{{LAUNCHD_PREFIX}}.daily-backup.plist         <- nightly backup
 |-- docs/
 |   |-- SETUP.md                       <- initial vault setup
 |   |-- SETUP-AGENTS.md                <- initial Hermes librarian setup
@@ -87,14 +87,14 @@ Three concrete problems it solves:
 
 ## The launchd jobs
 
-All registered as symlinks under `~/Library/LaunchAgents/com.alexmind.*.plist`. Verify with `launchctl list | grep alexmind`.
+All registered as symlinks under `~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.*.plist`. Verify with `launchctl list | grep {{LAUNCHD_PREFIX}}`.
 
 | Job | Schedule | What it does | Source |
 |---|---|---|---|
-| `com.alexmind.librarian.<name>` | Always-on (KeepAlive) | Runs a librarian Hermes gateway | `agents/<name>/scripts/start.sh` |
-| `com.alexmind.wiki-watcher.<vault>` | 2x/day (off-hour, staggered) | Claude classify + ingest for a vault | `{{OPS_REPO}}/run-ingest.sh <vault>` |
-| `com.alexmind.wiki-lint.<vault>` | Weekly (Sunday off-hour) | Claude lint pass on a vault | `{{OPS_REPO}}/run-lint.sh <vault>` |
-| `com.alexmind.daily-backup` | Daily at an off-hour minute (e.g. 03:33) | Safe commit + push of ALL repos | `{{OPS_REPO}}/scripts/daily-backup.sh` |
+| `com.{{LAUNCHD_PREFIX}}.librarian.<name>` | Always-on (KeepAlive) | Runs a librarian Hermes gateway | `agents/<name>/scripts/start.sh` |
+| `com.{{LAUNCHD_PREFIX}}.wiki-watcher.<vault>` | 2x/day (off-hour, staggered) | Claude classify + ingest for a vault | `{{OPS_REPO}}/run-ingest.sh <vault>` |
+| `com.{{LAUNCHD_PREFIX}}.wiki-lint.<vault>` | Weekly (Sunday off-hour) | Claude lint pass on a vault | `{{OPS_REPO}}/run-lint.sh <vault>` |
+| `com.{{LAUNCHD_PREFIX}}.daily-backup` | Daily at an off-hour minute (e.g. 03:33) | Safe commit + push of ALL repos | `{{OPS_REPO}}/scripts/daily-backup.sh` |
 
 Stagger times are intentionally off-hour (e.g. 08:17, 20:43, 03:33) to avoid integer-hour API thundering-herd patterns, keychain contention, and quota collisions. Never schedule on `HH:00`.
 
@@ -259,7 +259,7 @@ The user explicitly requires "the backup must not break or delete older data." S
 12. **NEVER schedule a job on an integer hour** (e.g. `HH:00`). Off-hour minutes like `:17`, `:33`, `:43` avoid API thundering-herd windows, keychain-access race conditions, and external-service rate-limit synchronization. All existing plists follow this rule; new ones must too.
 13. **NEVER hardcode secrets in any committed file.** Secrets live in 1Password (canonical) and gitignored local files only.
 14. **NEVER add Anthropic credentials to a librarian.** `anthropic` has no place in any `config.yaml`, `.env`, or `auth.json` under `agents/`. TOS -- see "Why Claude OAuth for ingest" above.
-15. **If you change the launchd plists, also update the symlinks** at `~/Library/LaunchAgents/com.alexmind.*.plist` and reload via `launchctl unload && launchctl load -w`.
+15. **If you change the launchd plists, also update the symlinks** at `~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.*.plist` and reload via `launchctl unload && launchctl load -w`.
 16. **If you add a new plist / script / secret,** update RESTORE.md AND the matching 1Password item the same day.
 17. **All paths are absolute.** This repo lives at `{{LOCAL_ROOT}}/{{OPS_REPO}}/` -- every plist, script, and doc references that exact path. Do not move the repo.
 

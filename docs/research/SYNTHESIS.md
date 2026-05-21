@@ -1,20 +1,20 @@
-# Research Synthesis — LLM Knowledge Bases (Karpathy pattern)
+# Research Synthesis — LLM Wiki (Karpathy pattern)
 
-> **The origin: two X threads.** This template was born from two posts on X (Twitter): **@hooeem's** "How to create your own LLM knowledge bases today (full course)" and **@defileo's** "Claude + Obsidian have to be illegal." A third post, AI Edge / Miles Deutscher's "Ultimate Guide," rounds out the trio. The raw text of all three is preserved in [`sources/`](./sources/) — read those if you need to resolve ambiguity or verify a quote.
+> **The canonical origin: Karpathy's "LLM Wiki" gist** ([`gist.github.com/karpathy/442a6bf555914893e9891c11519de94f`](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), Apr 3, 2026). A verbatim local copy lives at [`sources/karpathy-2026-04-03-llm-wiki.md`](./sources/karpathy-2026-04-03-llm-wiki.md). Three community write-ups — @hooeem, @defileo, AI Edge — turned the gist into shippable practice and inform the scaffolding here.
 
-> **What this doc is for.** The intellectual genealogy of the template. One page. Sources, shared core idea, concrete recipe, where each contributor adds unique value.
+> **What this doc is for.** The intellectual genealogy of the template. One page. Canonical source, three community interpretations, shared core idea, concrete recipe.
 
 ---
 
-## Origin: two X threads (plus one bonus)
+## Origin: one canonical source, three community interpretations
 
 Before any of the synthesis below, the short version:
 
-- **This template was born from two X threads.** @hooeem and @defileo each took Karpathy's "LLM Knowledge Bases" note and turned it into something you can actually ship. Their posts are the canonical inspiration for everything in this repo.
-- **A third source — AI Edge's "Ultimate Guide" — contributes "two vaults, not one" and "you can skip Obsidian entirely."** Useful but thinner; treated as a secondary.
-- **Primary texts live in [`sources/`](./sources/)** as verbatim `.txt` files. When in doubt, read them; the rest of this synthesis is a condensation.
+- **Canonical source — Karpathy's "LLM Wiki" gist.** Every architectural decision in this template traces back to that one file. Karpathy explicitly invites copy-pasting the gist to your LLM agent. Two key updates in his current text vs. some of the older community write-ups: (a) explicit AGENTS.md support alongside CLAUDE.md for Codex users; (b) lint is *both* structural *and* proactive — it should also suggest web searches, open questions, and new sources to investigate; (c) query outputs can be markdown, comparison tables, Marp slide decks, matplotlib charts, or Obsidian canvases — and good answers file back as wiki pages.
+- **@hooeem, @defileo, AI Edge are downstream interpretations.** Each one took Karpathy's note and turned it into something you can ship. All three are useful; none of them override Karpathy's gist if there's a conflict.
+- **Primary texts live in [`sources/`](./sources/)** as verbatim copies. When in doubt, read them; the rest of this synthesis is a condensation.
 
-The rest of this document is the condensed view. If you are about to propose a significant change to the pattern, read the primary sources first.
+The rest of this document is the condensed view. If you are about to propose a significant change to the pattern, read Karpathy's gist first, then the three community sources.
 
 ---
 

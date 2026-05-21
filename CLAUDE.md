@@ -1,6 +1,8 @@
 # CLAUDE.md — Session-start rules for this template
 
-> Claude Code auto-loads this file when you open the repo. It is intentionally short. `AGENT.md` is the authoritative playbook; this file is the compact reminder list.
+> Claude Code auto-loads this file when you open the repo. OpenAI Codex auto-loads `AGENTS.md` (top-level sibling stub pointing back here). The schema lives in one place. `AGENT.md` is the authoritative playbook; this file is the compact reminder list.
+
+**Canonical pattern source:** Andrej Karpathy, "LLM Wiki" gist ([`gist.github.com/karpathy/442a6bf555914893e9891c11519de94f`](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), Apr 3, 2026). Verbatim local copy at [`docs/research/sources/karpathy-2026-04-03-llm-wiki.md`](./docs/research/sources/karpathy-2026-04-03-llm-wiki.md).
 
 ---
 

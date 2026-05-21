@@ -219,9 +219,9 @@ hermes --version              # v0.10+
 HERMES_HOME=$(pwd) ./scripts/start.sh
 
 # 4. Register with launchd (or skip if {{OPS_REPO}} already did this)
-ln -sf {{LOCAL_ROOT}}/{{OPS_REPO}}/launchd/com.alexmind.librarian.{{AGENT_NAME}}.plist \
+ln -sf {{LOCAL_ROOT}}/{{OPS_REPO}}/launchd/com.{{LAUNCHD_PREFIX}}.librarian.{{AGENT_NAME}}.plist \
        ~/Library/LaunchAgents/
-launchctl load -w ~/Library/LaunchAgents/com.alexmind.librarian.{{AGENT_NAME}}.plist
+launchctl load -w ~/Library/LaunchAgents/com.{{LAUNCHD_PREFIX}}.librarian.{{AGENT_NAME}}.plist
 
 # 5. Smoke test — message the bot on Telegram, expect a reply within 30s
 ```

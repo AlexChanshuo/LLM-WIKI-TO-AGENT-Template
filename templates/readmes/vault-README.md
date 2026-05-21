@@ -156,7 +156,7 @@ The librarian's `hooks/auto-save-inbox/handler.py` is a Python hook on the `agen
 
 ## Backup & disaster recovery
 
-This repo is covered by `{{OPS_REPO}}/scripts/daily-backup.sh`, fired by `com.alexmind.daily-backup` launchd job at a staggered off-hour time:
+This repo is covered by `{{OPS_REPO}}/scripts/daily-backup.sh`, fired by `com.{{LAUNCHD_PREFIX}}.daily-backup` launchd job at a staggered off-hour time:
 
 - `git pull --rebase --autostash` first (safe with Obsidian's local edits)
 - `git add -A` then commit with an auto-sync message
@@ -196,7 +196,7 @@ This repo is covered by `{{OPS_REPO}}/scripts/daily-backup.sh`, fired by `com.al
 /wiki-lint           # weekly health check; report saved to wiki/outputs/
 ```
 
-Both ingest passes run automatically 2x/day via `{{OPS_REPO}}/launchd/com.alexmind.wiki-watcher.{{VAULT_NAME}}.plist`.
+Both ingest passes run automatically 2x/day via `{{OPS_REPO}}/launchd/com.{{LAUNCHD_PREFIX}}.wiki-watcher.{{VAULT_NAME}}.plist`.
 
 ---
 

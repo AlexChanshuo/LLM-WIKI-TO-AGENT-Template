@@ -107,7 +107,7 @@ A `--hard` reset discards uncommitted work in your working tree; `clean -fd` del
 Amending rewrites the previous commit. In an unattended backup that means historical commits disappear from `git log`. New commits only; every backup is audit-trailable: "at 03:33 on YYYY-MM-DD, these files changed, here is the commit."
 
 ### 4. Per-repo isolation
-If the personal vault is clean and chanshuo has a rebase conflict, you still want personal backed up. Each repo is its own try/catch; failures are per-repo entries in the summary JSON.
+If vault A is clean and vault B has a rebase conflict, you still want vault A backed up. Each repo is its own try/catch; failures are per-repo entries in the summary JSON.
 
 ### 5. Per-repo lockfile
 A manual `run-ingest.sh` at 03:31 can still be holding the repo's git index at 03:33. The lockfile prevents the backup from stepping on that commit. Stale lockfiles >1h are removed automatically — crashes should not wedge the backup permanently.

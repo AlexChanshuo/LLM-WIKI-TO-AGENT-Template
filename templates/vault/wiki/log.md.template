@@ -12,11 +12,23 @@ Append-only changelog of every op that touches `wiki/`. Each run of `ingest`, `c
 ## Contract
 
 - **Append-only.** Never edit or delete an existing entry. If an op ran incorrectly, log a corrective follow-up entry below it.
-- **One heading per event.** Format: `## [YYYY-MM-DD HH:MM] {op} | {one-line summary}`
+- **One heading per event.** Format: `## [YYYY-MM-DD HH:MM] {op} | {one-line summary}` — the leading `## [` is load-bearing; it makes the log parseable from the shell.
 - **Attribution is required.** Every entry identifies the op that ran (`ingest`, `compile`, `query`, `lint`) and, when available, the Claude model tier (e.g. `haiku-pass-1`, `sonnet-pass-2`).
 - **List every file the op created, updated, moved, or archived.** Use bullet lines with verb prefixes: `Created:`, `Updated:`, `Moved:`, `Archived:`, `Triaged:`.
 - **Source paths** always relative to the vault root (e.g. `wiki/entities/people/david-chen.md`).
 - Entries are in chronological order, newest at the bottom.
+
+## Shell access
+
+Because every heading uses the `## [...]` prefix, the log is queryable with plain unix tools:
+
+```bash
+grep "^## \[" log.md | tail -5                # last 5 events
+grep "^## \[" log.md | grep "ingest"          # all ingests
+grep "^## \[2026-04-" log.md                  # everything from April 2026
+```
+
+This is per Karpathy's gist — the log is a timeline the LLM uses to understand what's been done recently.
 
 ---
 

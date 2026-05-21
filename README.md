@@ -18,17 +18,18 @@ The entire system is extracted from a working 7-repo deployment. This template i
 
 ## Origin
 
-This template was born from **two X (Twitter) threads**, both riffing on Andrej Karpathy's "LLM Knowledge Bases" note (Apr 3, 2026):
+The pattern's **canonical source** is Andrej Karpathy's "LLM Wiki" gist (Apr 3, 2026): [`gist.github.com/karpathy/442a6bf555914893e9891c11519de94f`](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). Karpathy explicitly invites copy-pasting it to your LLM agent; every architectural decision in this template traces back to that one file. A verbatim local copy lives at [`docs/research/sources/karpathy-2026-04-03-llm-wiki.md`](./docs/research/sources/karpathy-2026-04-03-llm-wiki.md).
+
+Three community write-ups turned Karpathy's idea into shippable practice and inform the scaffolding here:
 
 - **@hooeem** — "How to create your own LLM knowledge bases today (full course)" — the operator manual: automation ladder, `CLAUDE.md` template, lint prompts.
 - **@defileo / Leo** — "Claude + Obsidian have to be illegal" — the command cookbook: best Claude Code one-liners for ingest, lint, morning-briefing.
-
-A third source, AI Edge / Miles Deutscher's "Ultimate Guide," contributes "two vaults, not one" and the wiki-as-mega-prompt framing.
+- **AI Edge / Miles Deutscher** — "Ultimate Guide" — contributes "two vaults, not one" and the wiki-as-mega-prompt framing.
 
 - Raw primary texts (verbatim): [`docs/research/sources/`](./docs/research/sources/)
 - Condensed one-page synthesis: [`docs/research/SYNTHESIS.md`](./docs/research/SYNTHESIS.md)
 
-Before modifying the pattern significantly, read the two X threads.
+Before modifying the pattern significantly, read Karpathy's gist first, then the three community sources in the order above.
 
 ---
 
@@ -59,7 +60,7 @@ If any of those are missing, `SETUP.md` tells you where to get them.
 
 ## The 3-layer pattern in 60 seconds
 
-Karpathy's "LLM Knowledge Base" pattern. Credit: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+Karpathy's "LLM Wiki" pattern. Credit: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 
 ```
               +---------------------------------------------+
@@ -78,14 +79,18 @@ Karpathy's "LLM Knowledge Base" pattern. Credit: https://gist.github.com/karpath
                                   ^
                                   |
               +---------------------------------------------+
-  CLAUDE.md   |  The schema                                  |
+  CLAUDE.md   |  The schema (Claude Code session-start)      |
+  AGENTS.md   |  The schema (Codex session-start; stub →     |
+              |  points back to CLAUDE.md)                   |
               |  Routing rules, frontmatter contracts,       |
               |  few-shot examples, lint rules.              |
               |  The LLM's job description.                  |
               +---------------------------------------------+
 ```
 
-Four operational cycles run against this structure: **ingest**, **compile**, **query**, **lint**.
+Four operational cycles run against this structure: **ingest**, **compile**, **query**, **lint**. Query outputs can be markdown, comparison tables, Marp slide decks, matplotlib charts, or Obsidian canvases — and the good ones get filed back into the wiki as new pages, so explorations compound. Lint is both structural (orphans / broken wikilinks / contradictions) and proactive (web-search gaps, open questions, source gaps).
+
+Works without RAG at moderate scale (~100 sources, ~hundreds of pages). Beyond that, escalate to [`qmd`](https://github.com/tobi/qmd) — see [`docs/02-vault-setup.md`](./docs/02-vault-setup.md).
 
 ---
 

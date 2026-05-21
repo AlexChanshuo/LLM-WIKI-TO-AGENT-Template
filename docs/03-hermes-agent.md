@@ -136,14 +136,14 @@ A good `SOUL.md` is 100–200 lines. It is the agent's constitution, loaded firs
 - OpenAI Codex OAuth is obtained via `hermes auth add openai-codex --type oauth --no-browser` (device code flow). Covered by the ChatGPT Pro subscription.
 - GitHub Copilot PAT is the auto-fallback when Codex tokens expire mid-flight.
 - **Never** an `anthropic` block. Never.
-- `chmod 600` the file. Store a canonical copy in 1Password under `AlexMind: {{AGENT_NAME}}/auth.json`.
+- `chmod 600` the file. Store a canonical copy in 1Password (or your secret vault of choice) under `{{PROJECT_NAME}}: {{AGENT_NAME}}/auth.json`.
 
 ---
 
 ## Telegram `@BotFather` setup
 
 1. Open Telegram, search for `@BotFather`.
-2. `/newbot` → name (e.g. "Glimpse Librarian") → username (`@{{TELEGRAM_BOT_HANDLE}}`).
+2. `/newbot` → name (e.g. "Wiki Librarian") → username (`@{{TELEGRAM_BOT_HANDLE}}`).
 3. Copy the token; paste into `.env` as `TELEGRAM_BOT_TOKEN=...`.
 4. `/setprivacy` → Disable (lets the bot see group messages if needed; keep Enabled if private-DM-only).
 5. `/setcommands` to advertise slash commands (optional).
@@ -178,7 +178,7 @@ Sample file the hook writes:
 source: telegram
 tg_message_id: 12345
 chat_id: -100xxxxx
-sender: alex
+sender: {{TELEGRAM_USER_ID}}
 date: 2026-04-17T15:30:42+08:00
 attachments: []
 ---

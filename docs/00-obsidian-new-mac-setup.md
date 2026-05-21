@@ -12,9 +12,9 @@ If you're on a fresh Mac with Homebrew installed and a vault repo that already e
 brew install --cask obsidian
 brew install gh
 gh auth login
-mkdir -p ~/AlexMind
-gh repo clone {{GITHUB_USER}}/{{VAULT_REPO}} ~/AlexMind/{{VAULT_NAME}}
-open -a Obsidian ~/AlexMind/{{VAULT_NAME}}
+mkdir -p ~/Code
+gh repo clone {{GITHUB_USER}}/{{VAULT_REPO}} ~/Code/{{VAULT_NAME}}
+open -a Obsidian ~/Code/{{VAULT_NAME}}
 ```
 
 Then in Obsidian: trust the vault, turn off Restricted Mode, install the 4 required community plugins, and you're done. Full steps below.
@@ -34,7 +34,7 @@ Before starting, confirm each of the following on the new Mac:
 | GitHub CLI (`gh`) | `brew install gh && gh auth login` | Cloning private vault repos |
 | Claude Code CLI (`claude`) | Install from https://claude.ai/download | Needed later for ingest; not for Obsidian itself |
 | Telegram account | Any phone | Needed later to connect the librarian bot |
-| A non-iCloud work folder | e.g. `~/AlexMind/` or `~/Code/` | Must not live inside iCloud Drive; see step 5 |
+| A non-iCloud work folder | e.g. `~/Code/` or `~/Developer/` | Must not live inside iCloud Drive; see step 5 |
 
 If any of Claude Code, Telegram, or Hermes are missing, that is fine for this doc — those are for later steps in `SETUP.md`. Only git, `gh`, and Obsidian itself are hard prerequisites here.
 
@@ -92,7 +92,7 @@ Close the welcome vault (Obsidian opens a default "Obsidian Help" vault). You wi
 
 Assumes the vault repo `{{GITHUB_USER}}/{{VAULT_REPO}}` already exists on GitHub. If it does not, stop here and do `SETUP.md` step 3 first — it scaffolds the repo — then come back.
 
-Pick a parent directory. The rest of this doc uses `~/{{LOCAL_ROOT}}/` (typically `~/AlexMind/`). Then:
+Pick a parent directory. The rest of this doc uses `~/{{LOCAL_ROOT}}/` (typically `~/Code/` or `~/Developer/`). Then:
 
 ```bash
 mkdir -p ~/{{LOCAL_ROOT}}
@@ -111,7 +111,7 @@ macOS defaults (Documents, Desktop) are often iCloud-synced. iCloud fights with 
 - iCloud has its own conflict-resolution (`file (conflicted copy).md`) that collides with Git's.
 - iCloud + Obsidian Git + the daily-backup script together produce unrecoverable three-way conflicts.
 
-Clone into `~/AlexMind/`, `~/Code/`, `~/Developer/`, or anywhere outside iCloud. Verify:
+Clone into `~/Code/`, `~/Developer/`, `~/Projects/`, or anywhere outside iCloud. Verify:
 
 ```bash
 mdls -name kMDItemIsUbiquitous ~/{{LOCAL_ROOT}}/{{VAULT_NAME}}
@@ -181,6 +181,20 @@ Settings > Core plugins. Turn ON:
 - Templates (Obsidian's built-in, separate from Templater community plugin)
 
 These are all local-only and off by default on a fresh install.
+
+---
+
+## 7b. Image download hotkey (Karpathy's recommended config)
+
+The Karpathy gist explicitly calls this out — set it up once and forget:
+
+1. Settings → Files and links → Attachment folder path → `raw/assets` (or wherever your raw assets live).
+2. Settings → Hotkeys → search for `Download` → find **"Download attachments for current file"** → bind to `Cmd+Shift+D`.
+3. After clipping a web article via Web Clipper (step 9), open the clipped note and hit `Cmd+Shift+D`. Every remote image referenced in the markdown gets downloaded to disk and rewritten to a local path.
+
+Why: an LLM can view images you pass it as files, but cannot reliably fetch image URLs at query time. Local images means the LLM can read the markdown text first, then view the specific images it needs as separate steps. Inline images in markdown are not natively readable in one pass — that's an LLM-capability limit, not an Obsidian one.
+
+The `Local Images Plus` community plugin (installed in step 7) is what implements the download command. Without it, the hotkey shows nothing.
 
 ---
 

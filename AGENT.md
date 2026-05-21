@@ -8,13 +8,14 @@
 
 For a basic bootstrap, this file plus `CLAUDE.md` is enough — skip ahead to "Your role."
 
-For anything else — if the human is asking you to deviate from the pattern, critique it, extend it, port it elsewhere, or resolve an ambiguity in routing / schema / operations — read the origin documents first:
+For anything else — if the human is asking you to deviate from the pattern, critique it, extend it, port it elsewhere, or resolve an ambiguity in routing / schema / operations — read the origin documents first, in this order:
 
-- [`docs/research/sources/hoeem_full_course.txt`](./docs/research/sources/hoeem_full_course.txt) — @hooeem's X course, the canonical operator manual.
+- [`docs/research/sources/karpathy-2026-04-03-llm-wiki.md`](./docs/research/sources/karpathy-2026-04-03-llm-wiki.md) — **canonical primary source.** Karpathy's "LLM Wiki" gist. The whole template descends from this one file.
+- [`docs/research/sources/hoeem_full_course.txt`](./docs/research/sources/hoeem_full_course.txt) — @hooeem's X course, the operator manual that turned the gist into shippable practice.
 - [`docs/research/sources/defileo_claude_obsidian.txt`](./docs/research/sources/defileo_claude_obsidian.txt) — @defileo's X thread, the command cookbook.
 - [`docs/research/SYNTHESIS.md`](./docs/research/SYNTHESIS.md) — one-page condensed view with signal ranking.
 
-These two X threads are where the pattern came from. If your proposed change contradicts either of them, the burden of proof is on the change.
+Karpathy set the pattern; the community threads turned it into practice. If your proposed change contradicts the gist, the burden of proof is on the change.
 
 ---
 

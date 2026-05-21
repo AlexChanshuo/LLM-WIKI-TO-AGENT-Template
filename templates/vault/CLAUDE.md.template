@@ -11,6 +11,8 @@
 
 This file is the contract every LLM session must load before touching anything under `wiki/`. If a rule here conflicts with a chat instruction, this file wins unless the user explicitly says otherwise.
 
+**Model-agnostic note.** Claude Code auto-loads `CLAUDE.md`. OpenAI Codex auto-loads `AGENTS.md` — which exists as a sibling stub that points right back here. Schema lives in exactly one file; never let the two drift. Canonical pattern source: Andrej Karpathy, "LLM Wiki" gist, [`gist.github.com/karpathy/442a6bf555914893e9891c11519de94f`](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) (Apr 3, 2026).
+
 ---
 
 ## The three-layer contract (Karpathy pattern)
@@ -207,18 +209,21 @@ Use this when the vault's shape has drifted (manual edits in Obsidian, batch imp
 **Output:** a filed answer at `wiki/outputs/{question-slug}.md` with `[[wikilink]]` citations.
 
 Steps:
-1. Read `wiki/index.md` first.
+1. Read `wiki/index.md` first. (At moderate scale — ~100 sources, ~hundreds of pages — index-first navigation works without embedding-based RAG. Beyond that, prefer `qmd` or a dedicated search tool — see `docs/02-vault-setup.md`.)
 2. Identify relevant pages from index summaries; read those pages (not more).
 3. Synthesize an answer, citing every non-trivial claim with a `[[wikilink]]`.
-4. Save the answer to `wiki/outputs/` and append an event to `log.md`.
+4. Pick the right output format for the question — markdown is the default, but a `comparison table`, a Marp slide deck (`syntheses/slides/...md` with `marp: true` frontmatter), a matplotlib chart, or an Obsidian canvas can be more useful. Multi-format output is encouraged when the question warrants it.
+5. Save the answer to `wiki/outputs/` and append an event to `log.md`. **Good answers are first-class wiki citizens** — filing them back means future queries can cite them, and your explorations compound.
 
 **Acceptance:** every factual claim traces to at least one wikilink; answer file has full frontmatter; no invented facts (use `[unverified]` marker).
 
+**Image handling:** LLMs cannot read markdown with inline images in one pass. If the source pages contain images that matter to the answer, read the markdown text first, then view referenced images separately under `raw/assets/` or `wiki/attachments/images/`. Cite the image with a `[[wikilink]]` to its asset path.
+
 ### 4. LINT — `/{{VAULT_NAME}}-lint`
 
-Weekly health check. Report to `wiki/outputs/lint-report-{YYYY-MM-DD}.md`.
+Weekly health check. Report to `wiki/outputs/lint-report-{YYYY-MM-DD}.md`. Lint observes; it does not fix. It also suggests — see the "Direction-finding" section below.
 
-Checks:
+**Health checks (structural):**
 - **Orphan pages** — pages with zero inbound `[[wikilinks]]`
 - **Stale areas** — `areas/` pages not updated in >30 days
 - **Broken wikilinks** — `[[...]]` targets that don't resolve to a file
@@ -226,8 +231,16 @@ Checks:
 - **Decisions due for review** — `review_date <= today AND outcome == pending`
 - **Triage queue backlog** — items untriaged for >7 days
 - **Audience mismatch** — pages with `audience: external` not in `wiki/external/`, or vice versa
+- **Contradictions** — claims on page A that newer source B contradicts (flag both, propose a synthesis page)
+- **Stale claims** — assertions in pages older than the most recent source on that topic
+- **Implicit-only concepts** — concepts mentioned in 3+ pages but lacking their own dedicated page
 
-**Acceptance:** report is written, every finding has a file path, no content pages modified by lint itself (lint observes, doesn't fix).
+**Direction-finding (proactive, this is where lint earns its keep):**
+- **Web-search gaps** — topics the wiki covers superficially where one well-chosen web search would close the loop. List as `WEBSEARCH SUGGESTED: "<query>" — gap on [[page]]`.
+- **New questions to investigate** — questions the wiki *almost but not quite* answers; flag with `OPEN QUESTION: ...` so the human can drop them into the next `query` cycle.
+- **New sources to look for** — author/work/dataset names that recur in source citations but have no entity page yet. Format as `SOURCE GAP: <name> — referenced in [[a]], [[b]], [[c]]`.
+
+**Acceptance:** report is written, every finding has a file path, no content pages modified by lint itself.
 
 ---
 

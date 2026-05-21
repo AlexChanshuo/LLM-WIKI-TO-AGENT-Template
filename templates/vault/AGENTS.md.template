@@ -1,0 +1,37 @@
+# AGENTS.md — Schema (OpenAI Codex / model-agnostic entry point)
+
+> **You are an agent loading this vault.** This file is the model-agnostic equivalent of `CLAUDE.md`. OpenAI Codex looks for `AGENTS.md` at session start; Claude Code looks for `CLAUDE.md`. **The schema is the same — there is exactly one source of truth.**
+>
+> **Read `CLAUDE.md` in this directory.** That is the canonical schema for {{VAULT_NAME}}: routing rules, frontmatter contracts, the four ops (ingest / compile / query / lint), and the hard NEVER rules. Everything below is a pointer back to it.
+
+---
+
+## Why this file exists
+
+Karpathy's "LLM Wiki" gist (Apr 3, 2026) explicitly says:
+
+> The schema — a document (e.g. CLAUDE.md for Claude Code or AGENTS.md for Codex) that tells the LLM how the wiki is structured, what the conventions are, and what workflows to follow when ingesting sources, answering questions, or maintaining the wiki.
+
+This template ships a single schema in `CLAUDE.md`. `AGENTS.md` exists so that:
+
+- Codex sessions auto-load the schema without you renaming files.
+- Cross-agent users (Claude Code on Mon, Codex on Tue, OpenCode / Pi on Wed) get identical behavior.
+- The pattern stays one-schema, multi-frontend — never duplicate the routing rules.
+
+If you ever find yourself editing `AGENTS.md` to differ from `CLAUDE.md`, stop. The drift is a bug.
+
+---
+
+## What to do as a non-Claude agent reading this vault
+
+1. **Open `CLAUDE.md`.** Read it in full. It is the schema; every rule in it applies to you regardless of which model is running.
+2. **Open this README** ({{VAULT_NAME}}/README.md) for the human-facing context.
+3. **Sample a few real files** under `wiki/entities/` and `wiki/syntheses/decisions/` to see how the frontmatter looks in practice.
+4. **Treat `raw/` as read-only.** Same rule as `CLAUDE.md` rule #1 — `raw/` is the immutable source layer.
+5. **Respect the four ops.** Every action you take should map to one of: ingest, compile, query, lint. If your action does not fit any of them, you are probably about to invent a fifth op — don't, unless the human explicitly asked.
+
+---
+
+## Pointer
+
+**The authoritative schema is `CLAUDE.md`.** Open it now.
